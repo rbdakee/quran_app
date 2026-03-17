@@ -1,0 +1,16 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Generated
+lesson.generated.json
+user_progress.json
+
+# IDE
+.vscode/
+.idea/
+.claude/

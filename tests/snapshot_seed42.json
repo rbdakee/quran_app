@@ -1,0 +1,40 @@
+{
+  "seed": 42,
+  "algorithm_version": "v3-graduated-srs-dynamic-ratio",
+  "step_count": 19,
+  "step_types": [
+    "review_card",
+    "review_card",
+    "review_card",
+    "review_card",
+    "review_card",
+    "review_card",
+    "reinforcement",
+    "review_card",
+    "new_word_intro",
+    "meaning_choice",
+    "audio_to_meaning",
+    "new_word_intro",
+    "meaning_choice",
+    "reinforcement",
+    "audio_to_meaning",
+    "translation_to_word",
+    "translation_to_word",
+    "ayah_build_ar_from_translation",
+    "ayah_build_ar_from_audio"
+  ],
+  "new_token_ids": [
+    "tok:1:7:8",
+    "tok:2:8:4"
+  ],
+  "due_count": 7,
+  "dynamic": {
+    "total_known_words": 49,
+    "computed_new": 2,
+    "computed_review": 7,
+    "actual_new": 2,
+    "actual_due": 7,
+    "actual_reinforcement": 2
+  },
+  "created_at": "2026-03-16T01:13:40.771305+00:00"
+}

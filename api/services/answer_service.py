@@ -1,10 +1,10 @@
 """
-Answer processing service — evaluates answers, updates SRS, writes history.
+Answer processing service — records answers (deferred SRS), applies SRS on completion.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Dict
 
 from sqlalchemy.orm import Session
 
@@ -71,7 +71,7 @@ def evaluate_assembly(answer: Dict, gold_order: list) -> bool:
     return submitted == gold_order
 
 
-def process_answer(
+def record_answer(
     db: Session,
     user_id: str,
     lesson_id: str,
@@ -82,10 +82,10 @@ def process_answer(
     telemetry: Dict,
 ) -> Dict:
     """
-    Process a user answer:
-    1. Record in review_history
-    2. Update SRS via engine
-    3. Write updated progress to DB
+    Record a user answer (deferred SRS — no progress update until completion):
+    1. Classify outcome
+    2. Write review_history as buffer
+    3. Update lesson record counters
     """
     now = datetime.now(timezone.utc)
 
@@ -93,7 +93,7 @@ def process_answer(
     latency_ms = telemetry.get("latency_ms", 4000)
     hint_used = telemetry.get("hint_used", False) or telemetry.get("used_hint", False)
 
-    # Build signal
+    # Build signal + classify
     signal = AnswerSignal(
         is_correct=is_correct,
         attempt_count=attempt_count,
@@ -102,7 +102,7 @@ def process_answer(
     )
     outcome_bucket = classify_outcome(signal)
 
-    # Write review history
+    # Write review history (serves as the SRS buffer)
     history = ReviewHistory(
         user_id=user_id,
         lesson_id=lesson_id,
@@ -118,28 +118,7 @@ def process_answer(
     )
     db.add(history)
 
-    # Get or create progress row
-    progress_row = db.query(UserTokenProgress).filter(
-        UserTokenProgress.user_id == user_id,
-        UserTokenProgress.token_id == token_id,
-    ).first()
-
-    if not progress_row:
-        progress_row = UserTokenProgress(
-            user_id=user_id,
-            token_id=token_id,
-            state=TokenState.new,
-            first_seen_at=now,
-        )
-        db.add(progress_row)
-        db.flush()
-
-    # Run SRS engine
-    engine_prog = _orm_to_engine(progress_row)
-    update_progress(engine_prog, signal, now)
-    _sync_engine_to_orm(engine_prog, progress_row)
-
-    # Update lesson record steps_answered
+    # Update lesson record counters only
     lesson_rec = db.query(LessonRecord).filter(
         LessonRecord.lesson_id == lesson_id
     ).first()
@@ -158,10 +137,67 @@ def process_answer(
             "type": "success" if is_correct else "incorrect",
             "message": "Correct!" if is_correct else "Try again",
         },
-        "progress_update": {
-            "token_id": token_id,
-            "new_state": engine_prog.state,
-            "stability": round(engine_prog.stability, 2),
-            "next_review_at": engine_prog.next_review_at,
-        },
+        "progress_update": None,
     }
+
+
+def apply_deferred_srs(db: Session, user_id: str, lesson_id: str) -> Dict:
+    """
+    Apply all buffered SRS updates for a completed lesson.
+    Called only from complete_lesson — atomic commit.
+
+    Groups review_history by token_id, applies last answer per token.
+    """
+    now = datetime.now(timezone.utc)
+
+    # Get all review_history for this lesson, ordered by answered_at
+    reviews = db.query(ReviewHistory).filter(
+        ReviewHistory.lesson_id == lesson_id,
+        ReviewHistory.user_id == user_id,
+    ).order_by(ReviewHistory.answered_at.asc()).all()
+
+    # Group by token_id — last answer per token wins
+    token_reviews: Dict[str, ReviewHistory] = {}
+    for r in reviews:
+        token_reviews[r.token_id] = r
+
+    tokens_updated = 0
+    for token_id, review in token_reviews.items():
+        # Get or create progress row
+        progress_row = db.query(UserTokenProgress).filter(
+            UserTokenProgress.user_id == user_id,
+            UserTokenProgress.token_id == token_id,
+        ).first()
+
+        if not progress_row:
+            progress_row = UserTokenProgress(
+                user_id=user_id,
+                token_id=token_id,
+                state=TokenState.new,
+                first_seen_at=now,
+                last_seen_at=now,
+            )
+            db.add(progress_row)
+            db.flush()
+
+        # Build signal from review_history
+        signal = AnswerSignal(
+            is_correct=review.is_correct,
+            attempt_count=review.attempt_count,
+            latency_ms=review.latency_ms or 4000,
+            hint_used=review.hint_used,
+        )
+
+        # Run SRS engine
+        engine_prog = _orm_to_engine(progress_row)
+        update_progress(engine_prog, signal, now)
+        _sync_engine_to_orm(engine_prog, progress_row)
+        tokens_updated += 1
+
+    # Single atomic commit for all SRS updates
+    db.commit()
+    return {"tokens_updated": tokens_updated}
+
+
+# Keep old name as alias for backward compatibility in tests
+process_answer = record_answer

@@ -4,6 +4,7 @@ Lesson API endpoints.
 from __future__ import annotations
 
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -14,13 +15,34 @@ from api.models.schemas import (
     APIResponse, AnswerRequest, AnswerResponse,
     LessonCompleteRequest, LessonCompleteResponse, LessonSummary,
 )
-from api.services.lesson_service import generate_lesson_for_user
-from api.services.answer_service import process_answer, evaluate_mcq, evaluate_assembly
+from api.services.lesson_service import generate_lesson_for_user, invalidate_active_lessons
+from api.services.answer_service import record_answer, apply_deferred_srs, evaluate_mcq, evaluate_assembly
 from api.services.progress_service import update_engagement_on_complete
 from api.models.orm import LessonRecord
 from api.cache import cache_lesson, get_cached_lesson
 
 router = APIRouter(prefix="/lessons", tags=["lessons"])
+
+
+def _generate_and_cache(db: Session, user_id: str, seed: int) -> dict:
+    """Shared logic: invalidate old lessons, generate new, cache."""
+    invalidate_active_lessons(db, user_id)
+    lesson = generate_lesson_for_user(db, user_id, seed=seed)
+    cache_lesson(lesson["lesson_id"], lesson)
+    return lesson
+
+
+@router.get("/next")
+def get_lesson_next(
+    user_id: str = Query(default="default_user"),
+    seed: Optional[int] = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    """Generate the next lesson for the user (Duolingo-like: no daily limit)."""
+    if seed is None:
+        seed = int(time.time()) % 100000
+    lesson = _generate_and_cache(db, user_id, seed)
+    return APIResponse(ok=True, data=lesson)
 
 
 @router.get("/today")
@@ -29,15 +51,10 @@ def get_lesson_today(
     seed: Optional[int] = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    """Generate today's lesson for the user."""
+    """Deprecated alias for /lessons/next — kept for backward compatibility."""
     if seed is None:
         seed = int(time.time()) % 100000
-
-    lesson = generate_lesson_for_user(db, user_id, seed=seed)
-
-    # Cache for answer processing
-    cache_lesson(lesson["lesson_id"], lesson)
-
+    lesson = _generate_and_cache(db, user_id, seed)
     return APIResponse(ok=True, data=lesson)
 
 
@@ -62,8 +79,8 @@ def submit_answer(
     user_id: str = Query(default="default_user"),
     db: Session = Depends(get_db),
 ):
-    """Submit an answer for a lesson step."""
-    # Validate lesson exists
+    """Submit an answer for a lesson step (deferred SRS — no progress update until completion)."""
+    # Validate lesson exists and is active
     lesson_rec = db.query(LessonRecord).filter(
         LessonRecord.lesson_id == lesson_id
     ).first()
@@ -72,6 +89,9 @@ def submit_answer(
 
     if lesson_rec.is_completed:
         raise HTTPException(status_code=400, detail={"code": "LESSON_EXPIRED", "message": "Lesson already completed"})
+
+    if lesson_rec.is_invalidated:
+        raise HTTPException(status_code=400, detail={"code": "LESSON_INVALIDATED", "message": "Lesson was invalidated"})
 
     # Determine correctness
     cached = get_cached_lesson(lesson_id)
@@ -110,7 +130,7 @@ def submit_answer(
 
         last_result = None
         for token_id in gold_ids:
-            last_result = process_answer(
+            last_result = record_answer(
                 db=db,
                 user_id=user_id,
                 lesson_id=lesson_id,
@@ -127,7 +147,7 @@ def submit_answer(
             result["step_index"] = req.step_index
             result["is_correct"] = is_correct
     else:
-        result = process_answer(
+        result = record_answer(
             db=db,
             user_id=user_id,
             lesson_id=lesson_id,
@@ -148,7 +168,7 @@ def complete_lesson(
     user_id: str = Query(default="default_user"),
     db: Session = Depends(get_db),
 ):
-    """Mark a lesson as completed."""
+    """Mark a lesson as completed and apply all deferred SRS updates atomically."""
     lesson_rec = db.query(LessonRecord).filter(
         LessonRecord.lesson_id == lesson_id
     ).first()
@@ -159,10 +179,16 @@ def complete_lesson(
     if lesson_rec.is_completed:
         raise HTTPException(status_code=400, detail={"code": "LESSON_EXPIRED", "message": "Already completed"})
 
-    from datetime import datetime, timezone
+    if lesson_rec.is_invalidated:
+        raise HTTPException(status_code=400, detail={"code": "LESSON_INVALIDATED", "message": "Lesson was invalidated"})
+
+    # Mark complete
     lesson_rec.is_completed = True
     lesson_rec.completed_at = datetime.now(timezone.utc)
     db.commit()
+
+    # Apply deferred SRS updates atomically
+    apply_deferred_srs(db, user_id, lesson_id)
 
     # Update engagement
     update_engagement_on_complete(db, user_id)
@@ -191,9 +217,3 @@ def complete_lesson(
         summary=summary,
         engagement={"streak_updated": True},
     ))
-
-
-# Cleanup cache on lesson complete
-@router.on_event("shutdown")
-def cleanup():
-    _active_lessons.clear()

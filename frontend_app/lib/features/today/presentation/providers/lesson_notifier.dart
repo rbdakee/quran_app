@@ -26,7 +26,7 @@ class LessonNotifier extends Notifier<LessonState> {
   Future<void> loadLesson() async {
     state = state.copyWith(phase: LessonPhase.loading);
     try {
-      final lesson = await _repo.getTodayLesson();
+      final lesson = await _repo.getNextLesson();
       if (lesson.steps.isEmpty) {
         state = state.copyWith(phase: LessonPhase.empty);
       } else {

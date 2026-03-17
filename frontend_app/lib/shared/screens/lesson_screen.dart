@@ -27,7 +27,7 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
     super.initState();
     // Load lesson on screen open
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Note: LessonNotifier loads /lessons/today by default
+      // Note: LessonNotifier loads /lessons/next by default
       // For review lessons, would need to pass lesson_id explicitly
       ref.read(lessonNotifierProvider.notifier).loadLessonById(widget.lessonId);
     });

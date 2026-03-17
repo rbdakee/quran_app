@@ -41,7 +41,7 @@ api/
     orm.py                — ORM: quran_tokens, user_token_progress, review_history, lesson_records, user_engagement
     schemas.py            — Pydantic DTOs (matches backend_contracts.md)
   routers/
-    lessons.py            — GET /lessons/today, POST /{id}/answer, POST /{id}/complete
+    lessons.py            — GET /lessons/next, GET /lessons/today (deprecated), POST /{id}/answer, POST /{id}/complete
     progress.py           — GET /progress/summary, /reviews-due, /engagement
   services/
     lesson_service.py     — bridges engine/ with DB
@@ -195,7 +195,8 @@ flutter pub run build_runner build
 |--------|------|-------------|
 | GET | `/health` | Health check |
 | GET | `/docs` | Swagger UI |
-| GET | `/lessons/today?user_id=X&seed=N` | Generate lesson |
+| GET | `/lessons/next?user_id=X&seed=N` | Generate lesson (invalidates any incomplete lesson) |
+| GET | `/lessons/today?user_id=X&seed=N` | Deprecated alias for /lessons/next |
 | POST | `/lessons/{id}/answer?user_id=X` | Submit step answer |
 | POST | `/lessons/{id}/complete?user_id=X` | Complete lesson, update SRS |
 | GET | `/progress/summary?user_id=X` | Progress summary |

@@ -57,14 +57,19 @@ Health-check backend.
 
 ---
 
-## 3) GET `/lessons/today`
+## 3) GET `/lessons/next` (primary) / GET `/lessons/today` (deprecated alias)
+
+Unified lesson endpoint (Duolingo-like). Generates optimal lesson based on current user progress.
+- **No daily limit** — user can take multiple lessons back-to-back
+- **Auto-invalidation** — any incomplete lesson for this user is discarded on new request
+- **Deferred SRS** — progress only updates on lesson completion, not on answer submission
 
 ### Query params
 - `user_id` (string, optional, default: `default_user`)
 - `seed` (int, optional; если не передан — сервер генерирует автоматически)
 
 Пример:
-`GET /lessons/today?user_id=u_123&seed=42`
+`GET /lessons/next?user_id=u_123&seed=42`
 
 ### Response `data`
 ```json
@@ -170,17 +175,15 @@ Health-check backend.
     "type": "success",
     "message": "Correct!"
   },
-  "progress_update": {
-    "token_id": "tok:1:2:3",
-    "new_state": "learning",
-    "stability": 1.0,
-    "next_review_at": "2026-03-17T01:46:00+00:00"
-  }
+  "progress_update": null
 }
 ```
 
+> **Note**: `progress_update` is always `null` — SRS updates are deferred until lesson completion.
+
 ### Error responses
 - `404` — lesson not found
+- `400 LESSON_INVALIDATED` — lesson was invalidated (user started a new lesson)
   ```json
   {"detail": {"code": "NOT_FOUND", "message": "Lesson not found"}}
   ```

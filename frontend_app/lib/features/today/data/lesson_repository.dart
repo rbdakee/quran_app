@@ -14,13 +14,13 @@ class LessonRepository {
 
   const LessonRepository(this._dio);
 
-  /// Load today's lesson
-  Future<LessonResponse> getTodayLesson({
+  /// Load next lesson (Duolingo-like: no daily limit, invalidates any incomplete lesson)
+  Future<LessonResponse> getNextLesson({
     String userId = ApiConstants.defaultUserId,
     int? seed,
   }) async {
     final response = await _dio.get(
-      ApiConstants.lessonToday,
+      ApiConstants.lessonNext,
       queryParameters: {
         'user_id': userId,
         if (seed != null) 'seed': seed,

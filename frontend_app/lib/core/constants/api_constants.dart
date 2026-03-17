@@ -5,6 +5,8 @@ abstract final class ApiConstants {
 
   // ── Endpoints ──
   static const String health = '/health';
+  static const String lessonNext = '/lessons/next';
+  @Deprecated('Use lessonNext instead')
   static const String lessonToday = '/lessons/today';
   static String lessonById(String lessonId) => '/lessons/$lessonId';
   static String lessonAnswer(String lessonId) => '/lessons/$lessonId/answer';

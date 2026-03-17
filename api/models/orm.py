@@ -154,6 +154,8 @@ class LessonRecord(Base):
     )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_invalidated: Mapped[bool] = mapped_column(Boolean, default=False)
+    invalidated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class UserEngagement(Base):

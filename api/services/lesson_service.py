@@ -16,8 +16,9 @@ from engine.generate_lesson import read_tokens, build_lesson, token_payload
 from engine.srs_engine import compute_dynamic_counts
 
 from api.models.orm import (
-    QuranToken, UserTokenProgress, LessonRecord, TokenState,
+    QuranToken, UserTokenProgress, LessonRecord, ReviewHistory, TokenState,
 )
+from api.cache import remove_cached_lesson
 
 # Cache dataset tokens in memory (loaded once)
 _DATASET_PATH = Path(__file__).resolve().parent.parent.parent / "dataset.csv"
@@ -54,15 +55,48 @@ def _progress_to_legacy(rows: List[UserTokenProgress]) -> Dict[str, Dict]:
     return result
 
 
+def invalidate_active_lessons(db: Session, user_id: str) -> List[str]:
+    """
+    Invalidate all incomplete lessons for user.
+    Deletes orphaned review_history (SRS was never committed).
+    Returns list of invalidated lesson_ids.
+    """
+    now = datetime.now(timezone.utc)
+
+    active = db.query(LessonRecord).filter(
+        LessonRecord.user_id == user_id,
+        LessonRecord.is_completed == False,
+        LessonRecord.is_invalidated == False,
+    ).all()
+
+    invalidated_ids = []
+    for rec in active:
+        rec.is_invalidated = True
+        rec.invalidated_at = now
+        invalidated_ids.append(rec.lesson_id)
+
+        # Delete orphaned review_history rows (SRS was never committed)
+        db.query(ReviewHistory).filter(
+            ReviewHistory.lesson_id == rec.lesson_id,
+        ).delete()
+
+        # Remove from in-memory cache
+        remove_cached_lesson(rec.lesson_id)
+
+    if invalidated_ids:
+        db.commit()
+
+    return invalidated_ids
+
+
 def generate_lesson_for_user(db: Session, user_id: str, seed: int = 7) -> Dict:
     """
-    Generate a lesson for the given user.
+    Generate a lesson for the given user (side-effect-free).
 
     1. Load user progress from DB
     2. Convert to legacy format
     3. Call engine build_lesson()
-    4. Save lesson record to DB
-    5. Mark new words in user progress
+    4. Save lesson record to DB (no user_token_progress changes)
     """
     tokens = _get_tokens()
 
@@ -76,7 +110,7 @@ def generate_lesson_for_user(db: Session, user_id: str, seed: int = 7) -> Dict:
     # Generate lesson via engine
     lesson = build_lesson(tokens, seed=seed, progress_override=progress_dict if progress_dict else None)
 
-    # Save lesson record
+    # Save lesson record (no progress side effects)
     now = datetime.now(timezone.utc)
     record = LessonRecord(
         lesson_id=lesson["lesson_id"],
@@ -88,33 +122,6 @@ def generate_lesson_for_user(db: Session, user_id: str, seed: int = 7) -> Dict:
         started_at=now,
     )
     db.add(record)
-
-    # Mark new words in progress (first_seen_at)
-    for t_payload in lesson.get("selection", {}).get("new", []):
-        tid = t_payload.get("token_id", "")
-        ckey = t_payload.get("concept_key", "")
-        if not tid:
-            continue
-
-        existing = db.query(UserTokenProgress).filter(
-            UserTokenProgress.user_id == user_id,
-            UserTokenProgress.token_id == tid,
-        ).first()
-
-        if not existing:
-            new_prog = UserTokenProgress(
-                user_id=user_id,
-                token_id=tid,
-                concept_key=ckey,
-                state=TokenState.new,
-                first_seen_at=now,
-                last_seen_at=now,
-            )
-            db.add(new_prog)
-        elif existing.first_seen_at is None:
-            existing.first_seen_at = now
-            existing.last_seen_at = now
-
     db.commit()
 
     # Add step_id and step_index to steps

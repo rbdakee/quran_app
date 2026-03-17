@@ -87,7 +87,7 @@ def setup_db():
         from api.models.orm import QuranToken
         batch = []
         seen_ids = set()
-        for t in all_tokens[:500]:  # enough for lesson generation
+        for t in all_tokens:  # import full dataset for FK consistency
             tid = getattr(t, "token_id", "")
             if not tid or tid in seen_ids:
                 continue
@@ -501,6 +501,291 @@ def test_second_lesson_progress_aware():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# TEST 9: /lessons/next endpoint (Duolingo-like)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_lessons_next_endpoint():
+    print("\n═══ TEST 9: /lessons/next Endpoint ═══")
+
+    uid = "test_user_next"
+
+    r = client.get(f"/lessons/next?user_id={uid}&seed=50")
+    log("next_endpoint_status", "PASS" if r.status_code == 200 else "FAIL",
+        f"status={r.status_code}")
+
+    body = r.json()
+    lesson = body.get("data", {})
+    lesson_id = lesson.get("lesson_id", "")
+    log("next_has_lesson_id", "PASS" if lesson_id else "FAIL",
+        f"lesson_id={lesson_id}")
+    log("next_has_steps", "PASS" if len(lesson.get("steps", [])) > 0 else "FAIL",
+        f"steps={len(lesson.get('steps', []))}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TEST 10: Deferred SRS — answers do NOT update user_token_progress
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_deferred_srs_no_progress_on_answer():
+    print("\n═══ TEST 10: Deferred SRS (No Progress on Answer) ═══")
+
+    uid = "test_user_deferred"
+
+    # Generate lesson
+    r = client.get(f"/lessons/next?user_id={uid}&seed=77")
+    lesson = r.json().get("data", {})
+    lesson_id = lesson.get("lesson_id", "")
+    steps = lesson.get("steps", [])
+
+    # Check: no user_token_progress rows before answering
+    db = TestSession()
+    try:
+        from api.models.orm import UserTokenProgress
+        rows_before = db.query(UserTokenProgress).filter(
+            UserTokenProgress.user_id == uid,
+        ).count()
+        log("deferred_no_progress_before_answer", "PASS" if rows_before == 0 else "FAIL",
+            f"progress rows before answering={rows_before} (expected 0)")
+    finally:
+        db.close()
+
+    # Answer some steps
+    for i, step in enumerate(steps[:4]):
+        step_type = step.get("type", "")
+        token_data = step.get("token", {})
+        token_id = token_data.get("token_id", "") if token_data else ""
+        if not token_id:
+            pool = step.get("pool", [])
+            if pool:
+                token_id = pool[0].get("token_id", "")
+            if not token_id:
+                continue
+
+        answer_payload = {}
+        if step_type in {"meaning_choice", "review_card", "reinforcement",
+                         "audio_to_meaning", "translation_to_word"}:
+            answer_payload = {"selected_option": step.get("correct", "")}
+        elif step_type.startswith("ayah_build"):
+            answer_payload = {"ordered_token_ids": step.get("gold_order_token_ids", [])}
+        else:
+            answer_payload = {"acknowledged": True}
+
+        client.post(
+            f"/lessons/{lesson_id}/answer?user_id={uid}",
+            json={
+                "step_index": i,
+                "step_type": step_type,
+                "token_id": token_id,
+                "answer": answer_payload,
+                "telemetry": {"latency_ms": 2000, "attempt_count": 1},
+            },
+        )
+
+    # Check: STILL no progress rows after answering (deferred SRS)
+    db = TestSession()
+    try:
+        rows_after_answer = db.query(UserTokenProgress).filter(
+            UserTokenProgress.user_id == uid,
+        ).count()
+        log("deferred_no_progress_after_answer", "PASS" if rows_after_answer == 0 else "FAIL",
+            f"progress rows after answering={rows_after_answer} (expected 0)")
+
+        # But review_history should exist
+        from api.models.orm import ReviewHistory
+        history_count = db.query(ReviewHistory).filter(
+            ReviewHistory.user_id == uid,
+            ReviewHistory.lesson_id == lesson_id,
+        ).count()
+        log("deferred_review_history_exists", "PASS" if history_count > 0 else "FAIL",
+            f"review_history rows={history_count}")
+    finally:
+        db.close()
+
+    # Complete lesson — NOW SRS should be applied
+    r = client.post(f"/lessons/{lesson_id}/complete?user_id={uid}", json={})
+    log("deferred_complete_status", "PASS" if r.status_code == 200 else "FAIL",
+        f"status={r.status_code}")
+
+    db = TestSession()
+    try:
+        rows_after_complete = db.query(UserTokenProgress).filter(
+            UserTokenProgress.user_id == uid,
+        ).count()
+        log("deferred_progress_after_complete", "PASS" if rows_after_complete > 0 else "FAIL",
+            f"progress rows after complete={rows_after_complete} (expected >0)")
+    finally:
+        db.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TEST 11: Lesson invalidation — abandoned lesson leaves no SRS trace
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_lesson_invalidation():
+    print("\n═══ TEST 11: Lesson Invalidation ═══")
+
+    uid = "test_user_invalidation"
+
+    # Generate first lesson
+    r = client.get(f"/lessons/next?user_id={uid}&seed=88")
+    lesson1 = r.json().get("data", {})
+    lesson_id_1 = lesson1.get("lesson_id", "")
+
+    # Answer a few steps (but don't complete)
+    steps = lesson1.get("steps", [])
+    for i, step in enumerate(steps[:3]):
+        step_type = step.get("type", "")
+        token_data = step.get("token", {})
+        token_id = token_data.get("token_id", "") if token_data else ""
+        if not token_id:
+            pool = step.get("pool", [])
+            if pool:
+                token_id = pool[0].get("token_id", "")
+            if not token_id:
+                continue
+
+        answer_payload = {}
+        if step_type in {"meaning_choice", "review_card", "reinforcement",
+                         "audio_to_meaning", "translation_to_word"}:
+            answer_payload = {"selected_option": step.get("correct", "")}
+        elif step_type.startswith("ayah_build"):
+            answer_payload = {"ordered_token_ids": step.get("gold_order_token_ids", [])}
+        else:
+            answer_payload = {"acknowledged": True}
+
+        client.post(
+            f"/lessons/{lesson_id_1}/answer?user_id={uid}",
+            json={
+                "step_index": i,
+                "step_type": step_type,
+                "token_id": token_id,
+                "answer": answer_payload,
+                "telemetry": {"latency_ms": 3000, "attempt_count": 1},
+            },
+        )
+
+    # Generate second lesson — should invalidate first
+    r = client.get(f"/lessons/next?user_id={uid}&seed=89")
+    lesson2 = r.json().get("data", {})
+    lesson_id_2 = lesson2.get("lesson_id", "")
+
+    log("invalidation_new_lesson_generated", "PASS" if lesson_id_2 and lesson_id_2 != lesson_id_1 else "FAIL",
+        f"lesson1={lesson_id_1}, lesson2={lesson_id_2}")
+
+    # Check: first lesson should be invalidated
+    db = TestSession()
+    try:
+        from api.models.orm import LessonRecord, ReviewHistory, UserTokenProgress
+        rec1 = db.query(LessonRecord).filter(
+            LessonRecord.lesson_id == lesson_id_1,
+        ).first()
+        log("invalidation_lesson1_invalidated", "PASS" if rec1 and rec1.is_invalidated else "FAIL",
+            f"is_invalidated={rec1.is_invalidated if rec1 else 'NOT FOUND'}")
+
+        # Check: review_history for lesson1 should be deleted
+        history1 = db.query(ReviewHistory).filter(
+            ReviewHistory.lesson_id == lesson_id_1,
+        ).count()
+        log("invalidation_history_cleaned", "PASS" if history1 == 0 else "FAIL",
+            f"review_history for lesson1={history1} (expected 0)")
+
+        # Check: no progress rows for this user (lesson1 was invalidated, lesson2 not completed)
+        progress_count = db.query(UserTokenProgress).filter(
+            UserTokenProgress.user_id == uid,
+        ).count()
+        log("invalidation_no_progress", "PASS" if progress_count == 0 else "FAIL",
+            f"progress rows={progress_count} (expected 0)")
+    finally:
+        db.close()
+
+    # Answering invalidated lesson should fail
+    if steps:
+        step = steps[0]
+        token_data = step.get("token", {})
+        token_id = token_data.get("token_id", "") if token_data else ""
+        if token_id:
+            r = client.post(
+                f"/lessons/{lesson_id_1}/answer?user_id={uid}",
+                json={
+                    "step_index": 0,
+                    "step_type": step.get("type", "review_card"),
+                    "token_id": token_id,
+                    "answer": {"selected_option": "test"},
+                    "telemetry": {"latency_ms": 3000, "attempt_count": 1},
+                },
+            )
+            log("invalidation_answer_rejected", "PASS" if r.status_code == 400 else "FAIL",
+                f"status={r.status_code} (expected 400)")
+
+    # Completing invalidated lesson should fail
+    r = client.post(f"/lessons/{lesson_id_1}/complete?user_id={uid}", json={})
+    log("invalidation_complete_rejected", "PASS" if r.status_code == 400 else "FAIL",
+        f"status={r.status_code} (expected 400)")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TEST 12: Back-to-back lessons (Duolingo-like flow)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_back_to_back_lessons():
+    print("\n═══ TEST 12: Back-to-Back Lessons ═══")
+
+    uid = "test_user_b2b"
+
+    # Generate + complete lesson 1
+    r = client.get(f"/lessons/next?user_id={uid}&seed=60")
+    lesson1 = r.json().get("data", {})
+    lid1 = lesson1.get("lesson_id", "")
+    steps1 = lesson1.get("steps", [])
+
+    # Answer all steps
+    for i, step in enumerate(steps1):
+        step_type = step.get("type", "")
+        token_data = step.get("token", {})
+        token_id = token_data.get("token_id", "") if token_data else ""
+        if not token_id:
+            pool = step.get("pool", [])
+            if pool:
+                token_id = pool[0].get("token_id", "")
+            if not token_id:
+                continue
+
+        answer_payload = {}
+        if step_type in {"meaning_choice", "review_card", "reinforcement",
+                         "audio_to_meaning", "translation_to_word"}:
+            answer_payload = {"selected_option": step.get("correct", "")}
+        elif step_type.startswith("ayah_build"):
+            answer_payload = {"ordered_token_ids": step.get("gold_order_token_ids", [])}
+        else:
+            answer_payload = {"acknowledged": True}
+
+        client.post(
+            f"/lessons/{lid1}/answer?user_id={uid}",
+            json={
+                "step_index": i,
+                "step_type": step_type,
+                "token_id": token_id,
+                "answer": answer_payload,
+                "telemetry": {"latency_ms": 1500, "attempt_count": 1},
+            },
+        )
+
+    client.post(f"/lessons/{lid1}/complete?user_id={uid}", json={})
+
+    # Immediately generate lesson 2
+    r = client.get(f"/lessons/next?user_id={uid}&seed=61")
+    lesson2 = r.json().get("data", {})
+    lid2 = lesson2.get("lesson_id", "")
+    dynamic2 = lesson2.get("dynamic", {})
+    known2 = dynamic2.get("total_known_words", 0)
+
+    log("b2b_second_lesson_generated", "PASS" if lid2 and lid2 != lid1 else "FAIL",
+        f"lesson1={lid1}, lesson2={lid2}")
+    log("b2b_progress_carried_forward", "PASS" if known2 > 0 else "FAIL",
+        f"total_known_words in lesson2={known2} (expected >0)")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Runner
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -520,6 +805,10 @@ def main():
         test_invalid_payloads()
         test_reviews_due()
         test_second_lesson_progress_aware()
+        test_lessons_next_endpoint()
+        test_deferred_srs_no_progress_on_answer()
+        test_lesson_invalidation()
+        test_back_to_back_lessons()
     finally:
         teardown_db()
 

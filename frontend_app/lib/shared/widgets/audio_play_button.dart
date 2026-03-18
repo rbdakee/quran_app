@@ -44,19 +44,31 @@ class _AudioPlayButtonState extends State<AudioPlayButton> {
 
   Future<void> _play() async {
     try {
-      setState(() { _loading = true; _hasError = false; });
+      setState(() {
+        _loading = true;
+        _hasError = false;
+      });
 
       final url = ApiConstants.audioUrl(
         surah: widget.surah,
         audioKey: widget.audioKey,
       );
       await _player.setUrl(url);
-      setState(() { _loading = false; _isPlaying = true; });
+      setState(() {
+        _loading = false;
+        _isPlaying = true;
+      });
 
       await _player.seek(Duration.zero);
       await _player.play();
     } catch (_) {
-      if (mounted) setState(() { _loading = false; _hasError = true; _isPlaying = false; });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _hasError = true;
+          _isPlaying = false;
+        });
+      }
     }
   }
 
@@ -102,7 +114,9 @@ class _AudioPlayButtonState extends State<AudioPlayButton> {
     }
 
     return Semantics(
-      label: _isPlaying ? 'Остановить воспроизведение' : 'Прослушать произношение',
+      label: _isPlaying
+          ? 'Остановить воспроизведение'
+          : 'Прослушать произношение',
       child: IconButton(
         onPressed: _loading ? null : _onTap,
         icon: _loading

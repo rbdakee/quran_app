@@ -9,7 +9,7 @@ from typing import Dict
 from sqlalchemy.orm import Session
 
 from api.models.orm import (
-    UserTokenProgress, ReviewHistory, LessonRecord, TokenState,
+    UserTokenProgress, ReviewHistory, LessonRecord, QuranToken, TokenState,
 )
 from engine.srs_engine import (
     TokenProgress, AnswerSignal, update_progress, classify_outcome,
@@ -38,7 +38,9 @@ def _orm_to_engine(row: UserTokenProgress) -> TokenProgress:
 
 
 def _sync_engine_to_orm(engine_prog: TokenProgress, row: UserTokenProgress) -> None:
-    """Write engine TokenProgress back to ORM row."""
+    """Write engine TokenProgress back to ORM row without dropping identity fields."""
+    if engine_prog.concept_key:
+        row.concept_key = engine_prog.concept_key
     row.state = TokenState(engine_prog.state)
     row.stability = engine_prog.stability
     row.difficulty = engine_prog.difficulty
@@ -50,6 +52,10 @@ def _sync_engine_to_orm(engine_prog: TokenProgress, row: UserTokenProgress) -> N
     row.last_seen_at = (
         datetime.fromisoformat(engine_prog.last_seen_at)
         if engine_prog.last_seen_at else None
+    )
+    row.first_seen_at = (
+        datetime.fromisoformat(engine_prog.first_seen_at)
+        if engine_prog.first_seen_at else row.first_seen_at
     )
     row.total_reviews = engine_prog.total_reviews
     row.total_correct = engine_prog.total_correct
@@ -80,12 +86,18 @@ def record_answer(
     token_id: str,
     is_correct: bool,
     telemetry: Dict,
+    *,
+    update_lesson_counters: bool = True,
 ) -> Dict:
     """
     Record a user answer (deferred SRS — no progress update until completion):
     1. Classify outcome
     2. Write review_history as buffer
-    3. Update lesson record counters
+    3. Update lesson record counters (unless update_lesson_counters=False)
+
+    For multi-token steps (e.g. ayah_build), callers should pass
+    update_lesson_counters=False and increment counters once externally
+    to avoid inflating lesson-level metrics.
     """
     now = datetime.now(timezone.utc)
 
@@ -118,14 +130,16 @@ def record_answer(
     )
     db.add(history)
 
-    # Update lesson record counters only
-    lesson_rec = db.query(LessonRecord).filter(
-        LessonRecord.lesson_id == lesson_id
-    ).first()
-    if lesson_rec:
-        lesson_rec.steps_answered += 1
-        if is_correct:
-            lesson_rec.correct_count += 1
+    # Update lesson record counters only when this is a single-token step.
+    # Multi-token steps (ayah_build) manage counters externally.
+    if update_lesson_counters:
+        lesson_rec = db.query(LessonRecord).filter(
+            LessonRecord.lesson_id == lesson_id
+        ).first()
+        if lesson_rec:
+            lesson_rec.steps_answered += 1
+            if is_correct:
+                lesson_rec.correct_count += 1
 
     db.commit()
 
@@ -139,6 +153,28 @@ def record_answer(
         },
         "progress_update": None,
     }
+
+
+def _resolve_concept_key(db: Session, lesson_id: str, token_id: str) -> str:
+    """Resolve concept_key from stored lesson payload first, then dataset fallback."""
+    lesson_rec = db.query(LessonRecord).filter(LessonRecord.lesson_id == lesson_id).first()
+    payload = lesson_rec.lesson_payload if lesson_rec else None
+    if isinstance(payload, dict):
+        selection = payload.get("selection", {}) or {}
+        for section in ("due", "new", "reinforcement"):
+            for token in selection.get(section, []) or []:
+                if token.get("token_id") == token_id and token.get("concept_key"):
+                    return token["concept_key"]
+        for step in payload.get("steps", []) or []:
+            token = step.get("token") or {}
+            if token.get("token_id") == token_id and token.get("concept_key"):
+                return token["concept_key"]
+            for pool_token in step.get("pool", []) or []:
+                if pool_token.get("token_id") == token_id and pool_token.get("concept_key"):
+                    return pool_token["concept_key"]
+
+    quran_token = db.query(QuranToken).filter(QuranToken.token_id == token_id).first()
+    return (quran_token.concept_key or "") if quran_token else ""
 
 
 def apply_deferred_srs(db: Session, user_id: str, lesson_id: str) -> Dict:
@@ -173,12 +209,15 @@ def apply_deferred_srs(db: Session, user_id: str, lesson_id: str) -> Dict:
             progress_row = UserTokenProgress(
                 user_id=user_id,
                 token_id=token_id,
+                concept_key=_resolve_concept_key(db, lesson_id, token_id),
                 state=TokenState.new,
                 first_seen_at=now,
                 last_seen_at=now,
             )
             db.add(progress_row)
             db.flush()
+        elif not progress_row.concept_key:
+            progress_row.concept_key = _resolve_concept_key(db, lesson_id, token_id)
 
         # Build signal from review_history
         signal = AnswerSignal(
@@ -190,6 +229,8 @@ def apply_deferred_srs(db: Session, user_id: str, lesson_id: str) -> Dict:
 
         # Run SRS engine
         engine_prog = _orm_to_engine(progress_row)
+        if progress_row.concept_key and not engine_prog.concept_key:
+            engine_prog.concept_key = progress_row.concept_key
         update_progress(engine_prog, signal, now)
         _sync_engine_to_orm(engine_prog, progress_row)
         tokens_updated += 1

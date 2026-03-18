@@ -21,7 +21,7 @@ class AppShell extends ConsumerWidget {
   void _onTap(BuildContext context, int index) {
     switch (index) {
       case 0:
-        context.go('/today');
+        context.go('/lessons');
       case 1:
         context.go('/progress');
       case 2:
@@ -33,13 +33,13 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = _currentIndex(context);
     final connectivity = ref.watch(connectivityProvider);
-    final isOffline = connectivity.whenOrNull(data: (online) => !online) ?? false;
+    final isOffline =
+        connectivity.whenOrNull(data: (online) => !online) ?? false;
 
     return Scaffold(
       body: Column(
         children: [
-          if (isOffline)
-            const StatusBanner(type: StatusBannerType.offline),
+          if (isOffline) const StatusBanner(type: StatusBannerType.offline),
           Expanded(child: child),
         ],
       ),
@@ -60,7 +60,7 @@ class AppShell extends ConsumerWidget {
             NavigationDestination(
               icon: Icon(Icons.auto_stories_outlined),
               selectedIcon: Icon(Icons.auto_stories),
-              label: 'Урок',
+              label: 'Уроки',
             ),
             NavigationDestination(
               icon: Icon(Icons.insights_outlined),

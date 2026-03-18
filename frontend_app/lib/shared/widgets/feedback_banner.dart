@@ -7,11 +7,7 @@ class FeedbackBanner extends StatelessWidget {
   final FeedbackType type;
   final String message;
 
-  const FeedbackBanner({
-    super.key,
-    required this.type,
-    required this.message,
-  });
+  const FeedbackBanner({super.key, required this.type, required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -41,10 +37,26 @@ class FeedbackBanner extends StatelessWidget {
 
   static (Color bg, Color accent, IconData icon) _styleFor(FeedbackType t) {
     return switch (t) {
-      FeedbackType.success => (AppColors.successBg, AppColors.successDefault, Icons.check_circle_outline),
-      FeedbackType.error => (AppColors.errorBg, AppColors.errorDefault, Icons.cancel_outlined),
-      FeedbackType.warning => (AppColors.warningBg, AppColors.warningDefault, Icons.warning_amber_outlined),
-      FeedbackType.info => (AppColors.infoBg, AppColors.infoDefault, Icons.info_outline),
+      FeedbackType.success => (
+        AppColors.successBg,
+        AppColors.successDefault,
+        Icons.check_circle_outline,
+      ),
+      FeedbackType.error => (
+        AppColors.errorBg,
+        AppColors.errorDefault,
+        Icons.cancel_outlined,
+      ),
+      FeedbackType.warning => (
+        AppColors.warningBg,
+        AppColors.warningDefault,
+        Icons.warning_amber_outlined,
+      ),
+      FeedbackType.info => (
+        AppColors.infoBg,
+        AppColors.infoDefault,
+        Icons.info_outline,
+      ),
     };
   }
 }

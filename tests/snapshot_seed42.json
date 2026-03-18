@@ -1,7 +1,7 @@
 {
   "seed": 42,
   "algorithm_version": "v3-graduated-srs-dynamic-ratio",
-  "step_count": 19,
+  "step_count": 18,
   "step_types": [
     "review_card",
     "review_card",
@@ -20,8 +20,7 @@
     "audio_to_meaning",
     "translation_to_word",
     "translation_to_word",
-    "ayah_build_ar_from_translation",
-    "ayah_build_ar_from_audio"
+    "ayah_build_ar_from_translation"
   ],
   "new_token_ids": [
     "tok:1:7:8",
@@ -36,5 +35,5 @@
     "actual_due": 7,
     "actual_reinforcement": 2
   },
-  "created_at": "2026-03-16T01:13:40.771305+00:00"
+  "created_at": "2026-03-17T16:05:08.009888+00:00"
 }

@@ -2,11 +2,13 @@
 SQLAlchemy ORM models — matches DATA_SCHEMA.md.
 """
 from datetime import datetime, timezone
+import enum
+
 from sqlalchemy import (
-    String, Integer, Float, Text, Boolean, DateTime, Enum as SAEnum,
-    ForeignKey, Index, UniqueConstraint, CheckConstraint,
+    String, Integer, Float, Text, Boolean, DateTime, Enum as SAEnum, JSON,
+    ForeignKey, Index, UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from api.models.db import Base
 
@@ -14,9 +16,6 @@ from api.models.db import Base
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
-
-import enum
-
 
 class TokenState(str, enum.Enum):
     new = "new"
@@ -33,6 +32,13 @@ class OutcomeBucket(str, enum.Enum):
     correct_retry = "correct_retry"
     hint_used = "hint_used"
     wrong = "wrong"
+
+
+class LessonStatus(str, enum.Enum):
+    generated = "generated"
+    in_progress = "in_progress"
+    completed = "completed"
+    invalidated = "invalidated"
 
 
 # ---------------------------------------------------------------------------
@@ -134,13 +140,21 @@ class ReviewHistory(Base):
 
 
 class LessonRecord(Base):
-    """Completed lesson metadata."""
+    """Stored lesson instance metadata + payload."""
     __tablename__ = "lesson_records"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     lesson_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     user_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     algorithm_version: Mapped[str] = mapped_column(String(48), nullable=False)
+    status: Mapped[str] = mapped_column(
+        SAEnum(LessonStatus, name="lesson_status", create_constraint=True),
+        default=LessonStatus.generated,
+        nullable=False,
+        index=True,
+    )
+    lesson_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    seed: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     total_steps: Mapped[int] = mapped_column(Integer, nullable=False)
     steps_answered: Mapped[int] = mapped_column(Integer, default=0)
@@ -156,6 +170,11 @@ class LessonRecord(Base):
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     is_invalidated: Mapped[bool] = mapped_column(Boolean, default=False)
     invalidated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_lesson_records_user_started", "user_id", "started_at"),
+        Index("ix_lesson_records_user_status", "user_id", "status"),
+    )
 
 
 class UserEngagement(Base):

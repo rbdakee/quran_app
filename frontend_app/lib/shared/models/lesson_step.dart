@@ -21,7 +21,8 @@ abstract class LessonStep with _$LessonStep {
     @JsonKey(name: 'ayah_segment_index') int? ayahSegmentIndex,
     @JsonKey(name: 'gold_order_token_ids') List<String>? goldOrderTokenIds,
     List<AyahPoolToken>? pool,
-    @JsonKey(name: 'prompt_translation_units') List<String>? promptTranslationUnits,
+    @JsonKey(name: 'prompt_translation_units')
+    List<String>? promptTranslationUnits,
     @JsonKey(name: 'prompt_audio_keys') List<String>? promptAudioKeys,
     @JsonKey(name: 'prompt_ar_tokens') List<String>? promptArTokens,
   }) = _LessonStep;

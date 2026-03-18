@@ -250,18 +250,31 @@ def pick_due(tokens_by_id: Dict[str, Token], progress: Dict[str, Dict], count: i
 
     candidates.sort(key=lambda x: x[0], reverse=True)
 
-    # Anti-duplicate by concept in card-based due queue.
+    # Prefer both concept diversity and ayah spread before falling back.
     selected: List[Token] = []
     seen_concepts: set[str] = set()
+    seen_ayahs: set[Tuple[int, int]] = set()
     for _, t in candidates:
-        if t.concept_key in seen_concepts:
+        ayah_key = (t.surah, t.ayah)
+        if t.concept_key in seen_concepts or ayah_key in seen_ayahs:
             continue
         selected.append(t)
         seen_concepts.add(t.concept_key)
+        seen_ayahs.add(ayah_key)
         if len(selected) >= count:
             return selected
 
-    # Fallback: if too few unique concepts, allow duplicates.
+    # Second pass: keep concept diversity even if ayah repeats become necessary.
+    if len(selected) < count:
+        for _, t in candidates:
+            if t in selected or t.concept_key in seen_concepts:
+                continue
+            selected.append(t)
+            seen_concepts.add(t.concept_key)
+            if len(selected) >= count:
+                return selected
+
+    # Final fallback: allow duplicates if unique concepts are exhausted.
     if len(selected) < count:
         for _, t in candidates:
             if t in selected:
@@ -727,15 +740,30 @@ def build_lesson(tokens: List[Token], seed: int, progress_override: Dict[str, Di
     else:
         progress = simulate_user_progress(tokens, ayah_index, rng)
 
-    # Dynamic new/review ratio based on user's known word count
+    # Dynamic new/review ratio based on user's known word count AND review pressure.
+    # This is the canonical planner: Next Lesson decides the right mix of
+    # new words vs reviews so the user never needs a separate review-only mode.
     total_known = sum(1 for p in progress.values() if p.get("state", "new") != "new")
     from engine.srs_engine import compute_dynamic_counts
+
+    # Pre-scan: count actually-due tokens to inform the planner about review pressure.
+    _pre_due_count = 0
+    for _tid, _p in progress.items():
+        if _p.get("state", "new") in {STATE_LEARNING, STATE_REVIEWING, STATE_LAPSED, STATE_MASTERED}:
+            _nra = _p.get("next_review_at")
+            if _nra:
+                try:
+                    if datetime.fromisoformat(_nra) <= now:
+                        _pre_due_count += 1
+                except Exception:
+                    pass
 
     dyn_new, dyn_review = compute_dynamic_counts(
         total_known,
         target_steps=LESSON_CONFIG["target_steps"],
         base_new=LESSON_CONFIG["new_count"],
         base_review=LESSON_CONFIG["due_count"],
+        actual_due=_pre_due_count,
     )
 
     due = pick_due(tokens_by_id, progress, dyn_review, now)
@@ -743,13 +771,22 @@ def build_lesson(tokens: List[Token], seed: int, progress_override: Dict[str, Di
     new_tokens = pick_new(tokens, tokens_by_id, progress, excluded, dyn_new)
     excluded.update(t.token_id for t in new_tokens)
     blocked_concepts = {t.concept_key for t in due + new_tokens}
-    reinforcement = pick_reinforcement(
-        tokens_by_id,
-        progress,
-        excluded,
-        LESSON_CONFIG["reinforcement_count"],
-        blocked_concepts=blocked_concepts,
-    )
+
+    # Policy: reinforcement only when there are due reviews.
+    # When due == 0, the user has no pending reviews — surfacing old words
+    # via reinforcement would create hidden reviews and confuse the lesson
+    # semantics (e.g. /lessons/today reporting "0 reviews" but still showing
+    # previously-learned words).
+    if due:
+        reinforcement = pick_reinforcement(
+            tokens_by_id,
+            progress,
+            excluded,
+            LESSON_CONFIG["reinforcement_count"],
+            blocked_concepts=blocked_concepts,
+        )
+    else:
+        reinforcement = []
 
     steps: List[Dict] = []
     progress_ids = set(progress.keys())
@@ -910,9 +947,11 @@ def build_lesson(tokens: List[Token], seed: int, progress_override: Dict[str, Di
         "generated_at_utc": now.isoformat(),
         "lesson_type": "daily",
         "algorithm_version": "v3-graduated-srs-dynamic-ratio",
+        "pipeline": "canonical",
         "config": LESSON_CONFIG,
         "dynamic": {
             "total_known_words": total_known,
+            "review_pressure": _pre_due_count,
             "computed_new": dyn_new,
             "computed_review": dyn_review,
             "actual_new": len(new_tokens),
@@ -935,6 +974,7 @@ def build_lesson(tokens: List[Token], seed: int, progress_override: Dict[str, Di
             "new_intro_policy": "One intro per concept_key (lemma/surface), no duplicate new-intro for same word concept",
             "new_order_policy": "High-frequency concepts first with POS-bucket diversity",
             "card_dedup_policy": "Due/Reinforcement avoid duplicate concept_key; ayah tasks may still include same concept in different locations",
+            "canonical_pipeline": "Next Lesson is the single progression entry point; review pressure auto-throttles new words",
         },
     }
     return lesson

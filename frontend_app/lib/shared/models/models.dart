@@ -1,6 +1,7 @@
 export 'token_payload.dart';
 export 'lesson_step.dart';
 export 'lesson_response.dart';
+export 'lessons_timeline.dart';
 export 'answer_request.dart';
 export 'answer_response.dart';
 export 'lesson_complete_response.dart';

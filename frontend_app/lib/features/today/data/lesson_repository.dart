@@ -14,23 +14,34 @@ class LessonRepository {
 
   const LessonRepository(this._dio);
 
-  /// Load next lesson (Duolingo-like: no daily limit, invalidates any incomplete lesson)
-  Future<LessonResponse> getNextLesson({
+  Future<LessonsTimelineResponse> getTimeline({
     String userId = ApiConstants.defaultUserId,
-    int? seed,
+    int limit = 20,
   }) async {
     final response = await _dio.get(
-      ApiConstants.lessonNext,
-      queryParameters: {
-        'user_id': userId,
-        if (seed != null) 'seed': seed,
-      },
+      ApiConstants.lessonsTimeline,
+      queryParameters: {'user_id': userId, 'limit': limit},
     );
     final data = _extractData(response.data);
-    return LessonResponse.fromJson(data);
+    return LessonsTimelineResponse.fromJson(data);
   }
 
-  /// Load lesson by ID (active lesson created by backend)
+  Future<String> createNextLesson({
+    String userId = ApiConstants.defaultUserId,
+  }) async {
+    final response = await _dio.post(
+      ApiConstants.lessonsCreateNext,
+      queryParameters: {'user_id': userId},
+    );
+    final data = _extractData(response.data);
+    final lessonId = data['lesson_id']?.toString();
+    if (lessonId == null || lessonId.isEmpty) {
+      throw const FormatException('Missing lesson_id in create-next response');
+    }
+    return lessonId;
+  }
+
+  /// Load lesson by ID (exact stored lesson instance)
   Future<LessonResponse> getLessonById({
     required String lessonId,
     String userId = ApiConstants.defaultUserId,
@@ -64,11 +75,14 @@ class LessonRepository {
     String userId = ApiConstants.defaultUserId,
     String? completedAt,
   }) async {
+    final payload = <String, dynamic>{};
+    if (completedAt != null) {
+      payload['completed_at'] = completedAt;
+    }
+
     final response = await _dio.post(
       ApiConstants.lessonComplete(lessonId),
-      data: {
-        if (completedAt != null) 'completed_at': completedAt,
-      },
+      data: payload,
       queryParameters: {'user_id': userId},
     );
     final data = _extractData(response.data);

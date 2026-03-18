@@ -50,7 +50,9 @@ class OptionTile extends StatelessWidget {
     );
   }
 
-  static (Color bg, Color border, Color text, IconData? icon) _styleFor(OptionState s) {
+  static (Color bg, Color border, Color text, IconData? icon) _styleFor(
+    OptionState s,
+  ) {
     return switch (s) {
       OptionState.idle => (
         Colors.transparent,

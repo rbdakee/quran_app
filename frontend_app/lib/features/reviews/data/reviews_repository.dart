@@ -21,10 +21,7 @@ class ReviewsRepository {
   }) async {
     final response = await _dio.get(
       ApiConstants.reviewsDue,
-      queryParameters: {
-        'user_id': userId,
-        'limit': limit,
-      },
+      queryParameters: {'user_id': userId, 'limit': limit},
     );
     final data = _extractListData(response.data);
     return data.map((e) => DueReviewItem.fromJson(e)).toList();
@@ -36,14 +33,11 @@ class ReviewsRepository {
     int? seed,
     int limit = 20,
   }) async {
-    final queryParams = {
-      'user_id': userId,
-      'limit': limit,
-    };
+    final queryParams = {'user_id': userId, 'limit': limit};
     if (seed != null) {
       queryParams['seed'] = seed;
     }
-    
+
     final response = await _dio.get(
       ApiConstants.reviewsWords,
       queryParameters: queryParams,

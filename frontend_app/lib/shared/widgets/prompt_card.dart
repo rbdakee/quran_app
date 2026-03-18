@@ -5,11 +5,7 @@ class PromptCard extends StatelessWidget {
   final Widget child;
   final double minHeight;
 
-  const PromptCard({
-    super.key,
-    required this.child,
-    this.minHeight = 140,
-  });
+  const PromptCard({super.key, required this.child, this.minHeight = 140});
 
   @override
   Widget build(BuildContext context) {

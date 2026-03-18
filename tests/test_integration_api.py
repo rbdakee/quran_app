@@ -184,12 +184,12 @@ def test_full_lesson_cycle():
     log("lesson_has_selection", "PASS" if selection else "FAIL",
         f"new={len(new_tokens)}, due={len(due_tokens)}")
 
-    # Answer some steps
+    # Answer ALL steps (completion guard requires all steps answered)
     answered_count = 0
     correct_count = 0
     answer_step_indices = []
 
-    for i, step in enumerate(steps[:8]):  # answer first 8 steps
+    for i, step in enumerate(steps):  # answer all steps
         step_type = step.get("type", "")
         token_id = ""
 
@@ -445,10 +445,32 @@ def test_invalid_payloads():
     log("invalid_complete_no_lesson", "PASS" if r.status_code == 404 else "FAIL",
         f"status={r.status_code} (expected 404)")
 
-    # Complete already-completed lesson (need to generate+complete one first)
+    # Complete already-completed lesson (need to generate+answer all+complete one first)
     r = client.get(f"/lessons/today?user_id=test_invalid&seed=99")
     if r.status_code == 200:
         lid = r.json()["data"]["lesson_id"]
+        inv_steps = r.json()["data"].get("steps", [])
+        # Answer all steps so completion guard passes
+        for i, step in enumerate(inv_steps):
+            step_type = step.get("type", "")
+            token_data = step.get("token", {})
+            token_id = token_data.get("token_id", "") if token_data else ""
+            if not token_id:
+                pool = step.get("pool", [])
+                if pool:
+                    token_id = pool[0].get("token_id", "")
+                if not token_id:
+                    continue
+            if step_type in {"meaning_choice", "review_card", "reinforcement", "audio_to_meaning", "translation_to_word"}:
+                ans = {"selected_option": step.get("correct", "")}
+            elif step_type.startswith("ayah_build"):
+                ans = {"ordered_token_ids": step.get("gold_order_token_ids", [])}
+            else:
+                ans = {"acknowledged": True}
+            client.post(f"/lessons/{lid}/answer?user_id=test_invalid", json={
+                "step_index": i, "step_type": step_type, "token_id": token_id,
+                "answer": ans, "telemetry": {"latency_ms": 1000, "attempt_count": 1},
+            })
         client.post(f"/lessons/{lid}/complete?user_id=test_invalid", json={})
         r2 = client.post(f"/lessons/{lid}/complete?user_id=test_invalid", json={})
         log("invalid_double_complete", "PASS" if r2.status_code == 400 else "FAIL",
@@ -521,6 +543,32 @@ def test_lessons_next_endpoint():
     log("next_has_steps", "PASS" if len(lesson.get("steps", [])) > 0 else "FAIL",
         f"steps={len(lesson.get('steps', []))}")
 
+    # Regression: a truly fresh user must not get simulated due/reinforcement content.
+    selection = lesson.get("selection", {})
+    due = selection.get("due", [])
+    reinforcement = selection.get("reinforcement", [])
+    step_types = [step.get("type") for step in lesson.get("steps", [])]
+    card_token_ids = {
+        step.get("token", {}).get("token_id")
+        for step in lesson.get("steps", [])
+        if step.get("type") in {"review_card", "reinforcement"} and step.get("token", {}).get("token_id")
+    }
+    new_token_ids = {
+        token.get("token_id") for token in selection.get("new", []) if token.get("token_id")
+    }
+    old_word_card_ids = sorted(card_token_ids - new_token_ids)
+
+    log("next_fresh_user_no_due_selection", "PASS" if len(due) == 0 else "FAIL",
+        f"due={len(due)}")
+    log("next_fresh_user_no_reinforcement_selection", "PASS" if len(reinforcement) == 0 else "FAIL",
+        f"reinforcement={len(reinforcement)}")
+    log("next_fresh_user_no_reinforcement_steps", "PASS" if "reinforcement" not in step_types else "FAIL",
+        f"step_types={step_types}")
+    log("next_fresh_user_review_cards_only_from_new_words", "PASS" if card_token_ids <= new_token_ids else "FAIL",
+        f"review_card_token_ids={sorted(card_token_ids)}, new_token_ids={sorted(new_token_ids)}")
+    log("next_fresh_user_no_old_word_cards", "PASS" if not old_word_card_ids else "FAIL",
+        f"old_word_card_ids={old_word_card_ids}")
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TEST 10: Deferred SRS — answers do NOT update user_token_progress
@@ -549,8 +597,8 @@ def test_deferred_srs_no_progress_on_answer():
     finally:
         db.close()
 
-    # Answer some steps
-    for i, step in enumerate(steps[:4]):
+    # Answer ALL steps (completion guard requires all steps answered)
+    for i, step in enumerate(steps):
         step_type = step.get("type", "")
         token_data = step.get("token", {})
         token_id = token_data.get("token_id", "") if token_data else ""
@@ -786,6 +834,234 @@ def test_back_to_back_lessons():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# TEST 13: Timeline MVP endpoints
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_create_next_fresh_user():
+    print("\n═══ TEST 13: create-next (fresh user) ═══")
+
+    uid = "test_user_create_next_fresh"
+    r = client.post(f"/lessons/create-next?user_id={uid}&seed=501")
+    log("create_next_fresh_status", "PASS" if r.status_code == 200 else "FAIL", f"status={r.status_code}")
+
+    lesson = r.json().get("data", {})
+    lesson_id = lesson.get("lesson_id", "")
+    log("create_next_fresh_has_lesson", "PASS" if lesson_id else "FAIL", f"lesson_id={lesson_id}")
+    log("create_next_fresh_generated_status", "PASS" if lesson.get("status", "generated") == "generated" else "FAIL", f"status={lesson.get('status')}")
+
+
+def test_create_next_reuses_active_lesson():
+    print("\n═══ TEST 14: create-next reuses active lesson ═══")
+
+    uid = "test_user_create_next_reuse"
+    r1 = client.post(f"/lessons/create-next?user_id={uid}&seed=601")
+    lesson1 = r1.json().get("data", {})
+    lid1 = lesson1.get("lesson_id", "")
+
+    r2 = client.post(f"/lessons/create-next?user_id={uid}&seed=602")
+    lesson2 = r2.json().get("data", {})
+    lid2 = lesson2.get("lesson_id", "")
+
+    log("create_next_reuse_same_lesson", "PASS" if lid1 and lid1 == lid2 else "FAIL", f"lesson1={lid1}, lesson2={lid2}")
+
+    db = TestSession()
+    try:
+        from api.models.orm import LessonRecord
+        active_count = db.query(LessonRecord).filter(LessonRecord.user_id == uid).count()
+        log("create_next_reuse_no_duplicates", "PASS" if active_count == 1 else "FAIL", f"lesson_records={active_count} (expected 1)")
+    finally:
+        db.close()
+
+
+def test_timeline_returns_stored_lessons():
+    print("\n═══ TEST 15: timeline returns stored lessons ═══")
+
+    uid = "test_user_timeline"
+    created_ids = []
+    for seed in (701, 702):
+        r = client.get(f"/lessons/next?user_id={uid}&seed={seed}")
+        created_ids.append(r.json().get("data", {}).get("lesson_id"))
+
+    r = client.get(f"/lessons/timeline?user_id={uid}&limit=20")
+    log("timeline_status", "PASS" if r.status_code == 200 else "FAIL", f"status={r.status_code}")
+    data = r.json().get("data", {})
+    items = data.get("items", [])
+    item_ids = [item.get("lesson_id") for item in items]
+    expected_present = all(lid in item_ids for lid in created_ids if lid)
+    log("timeline_contains_created_lessons", "PASS" if expected_present else "FAIL", f"item_ids={item_ids}")
+    next_info = data.get("next_lesson", {})
+    log("timeline_next_cta_present", "PASS" if "has_active_lesson" in next_info else "FAIL", f"next_lesson={next_info}")
+
+
+def test_get_by_id_returns_exact_lesson():
+    print("\n═══ TEST 16: get lesson by id returns exact stored lesson ═══")
+
+    uid = "test_user_get_by_id"
+    created = client.post(f"/lessons/create-next?user_id={uid}&seed=801")
+    original = created.json().get("data", {})
+    lesson_id = original.get("lesson_id", "")
+
+    r = client.get(f"/lessons/{lesson_id}?user_id={uid}")
+    log("get_by_id_status", "PASS" if r.status_code == 200 else "FAIL", f"status={r.status_code}")
+    fetched = r.json().get("data", {})
+    same_steps = fetched.get("steps") == original.get("steps")
+    same_selection = fetched.get("selection") == original.get("selection")
+    log("get_by_id_exact_steps", "PASS" if same_steps else "FAIL", f"steps_match={same_steps}")
+    log("get_by_id_exact_selection", "PASS" if same_selection else "FAIL", f"selection_match={same_selection}")
+
+
+def test_review_lesson_get_by_id_returns_full_payload():
+    print("\n═══ TEST 16B: review lesson get by id returns full stored payload ═══")
+
+    uid = "test_user_review_get_by_id"
+
+    created = client.post(f"/lessons/create-next?user_id={uid}&seed=811")
+    lesson = created.json().get("data", {})
+    lesson_id = lesson.get("lesson_id", "")
+    steps = lesson.get("steps", [])
+
+    answered = 0
+    for i, step in enumerate(steps):  # answer ALL steps for completion guard
+        step_type = step.get("type", "")
+        token_data = step.get("token", {})
+        token_id = token_data.get("token_id", "") if token_data else ""
+        if not token_id:
+            pool = step.get("pool", [])
+            if pool:
+                token_id = pool[0].get("token_id", "")
+            if not token_id:
+                continue
+
+        if step_type in {"meaning_choice", "review_card", "reinforcement", "audio_to_meaning", "translation_to_word"}:
+            answer_payload = {"selected_option": step.get("correct", "")}
+        elif step_type.startswith("ayah_build"):
+            answer_payload = {"ordered_token_ids": step.get("gold_order_token_ids", [])}
+        else:
+            answer_payload = {"acknowledged": True}
+
+        resp = client.post(
+            f"/lessons/{lesson_id}/answer?user_id={uid}",
+            json={
+                "step_index": i,
+                "step_type": step_type,
+                "token_id": token_id,
+                "answer": answer_payload,
+                "telemetry": {"latency_ms": 1000, "attempt_count": 1},
+            },
+        )
+        if resp.status_code == 200:
+            answered += 1
+
+    completed = client.post(f"/lessons/{lesson_id}/complete?user_id={uid}", json={})
+    log("review_lesson_seed_complete_status", "PASS" if completed.status_code == 200 else "FAIL", f"status={completed.status_code}")
+
+    review_resp = client.get(f"/progress/reviews-words?user_id={uid}&seed=812&limit=20")
+    log("review_lesson_create_status", "PASS" if review_resp.status_code == 200 else "FAIL", f"status={review_resp.status_code}")
+    original = review_resp.json().get("data", {})
+    review_lesson_id = original.get("lesson_id", "")
+
+    fetched_resp = client.get(f"/lessons/{review_lesson_id}?user_id={uid}")
+    log("review_lesson_get_by_id_status", "PASS" if fetched_resp.status_code == 200 else "FAIL", f"status={fetched_resp.status_code}")
+    fetched = fetched_resp.json().get("data", {})
+
+    same_steps = fetched.get("steps") == original.get("steps")
+    same_selection = fetched.get("selection") == original.get("selection")
+    has_payload_shape = bool(fetched.get("steps")) and "selection" in fetched and "config" in fetched
+    log("review_lesson_get_by_id_exact_steps", "PASS" if same_steps else "FAIL", f"steps_match={same_steps}")
+    log("review_lesson_get_by_id_exact_selection", "PASS" if same_selection else "FAIL", f"selection_match={same_selection}")
+    log("review_lesson_get_by_id_full_payload", "PASS" if has_payload_shape else "FAIL", f"keys={list(fetched.keys())}")
+
+    db = TestSession()
+    try:
+        from api.models.orm import LessonRecord
+        rec = db.query(LessonRecord).filter(LessonRecord.lesson_id == review_lesson_id).first()
+        has_stored_payload = bool(rec and rec.lesson_payload and rec.lesson_payload.get("steps"))
+        log("review_lesson_db_payload_persisted", "PASS" if has_stored_payload else "FAIL", f"stored={has_stored_payload}")
+    finally:
+        db.close()
+
+
+def test_completed_lesson_read_only_and_no_reapply():
+    print("\n═══ TEST 17: completed lesson is read-only / no reapply ═══")
+
+    uid = "test_user_completed_readonly"
+    r = client.post(f"/lessons/create-next?user_id={uid}&seed=901")
+    lesson = r.json().get("data", {})
+    lesson_id = lesson.get("lesson_id", "")
+    steps = lesson.get("steps", [])
+
+    answered = 0
+    for i, step in enumerate(steps):  # answer ALL steps for completion guard
+        step_type = step.get("type", "")
+        token_data = step.get("token", {})
+        token_id = token_data.get("token_id", "") if token_data else ""
+        if not token_id:
+            pool = step.get("pool", [])
+            if pool:
+                token_id = pool[0].get("token_id", "")
+            if not token_id:
+                continue
+
+        if step_type in {"meaning_choice", "review_card", "reinforcement", "audio_to_meaning", "translation_to_word"}:
+            answer_payload = {"selected_option": step.get("correct", "")}
+        elif step_type.startswith("ayah_build"):
+            answer_payload = {"ordered_token_ids": step.get("gold_order_token_ids", [])}
+        else:
+            answer_payload = {"acknowledged": True}
+
+        resp = client.post(
+            f"/lessons/{lesson_id}/answer?user_id={uid}",
+            json={
+                "step_index": i,
+                "step_type": step_type,
+                "token_id": token_id,
+                "answer": answer_payload,
+                "telemetry": {"latency_ms": 1200, "attempt_count": 1},
+            },
+        )
+        if resp.status_code == 200:
+            answered += 1
+
+    log("completed_readonly_answered_all_steps", "PASS" if answered > 0 else "FAIL", f"answered={answered}")
+
+    complete1 = client.post(f"/lessons/{lesson_id}/complete?user_id={uid}", json={})
+    log("completed_readonly_first_complete_ok", "PASS" if complete1.status_code == 200 else "FAIL", f"status={complete1.status_code}")
+
+    db = TestSession()
+    try:
+        from api.models.orm import UserTokenProgress, LessonRecord
+        progress_count_before = db.query(UserTokenProgress).filter(UserTokenProgress.user_id == uid).count()
+        rec = db.query(LessonRecord).filter(LessonRecord.lesson_id == lesson_id).first()
+        status_value = rec.status.value if hasattr(rec.status, 'value') else rec.status
+        log("completed_readonly_status_completed", "PASS" if status_value == "completed" else "FAIL", f"status={status_value}")
+    finally:
+        db.close()
+
+    answer_again = client.post(
+        f"/lessons/{lesson_id}/answer?user_id={uid}",
+        json={
+            "step_index": 0,
+            "step_type": steps[0].get("type", "new_word_intro") if steps else "new_word_intro",
+            "token_id": (steps[0].get("token") or {}).get("token_id", "") if steps else "",
+            "answer": {"acknowledged": True},
+            "telemetry": {"latency_ms": 1000, "attempt_count": 1},
+        },
+    )
+    log("completed_readonly_answer_rejected", "PASS" if answer_again.status_code == 400 else "FAIL", f"status={answer_again.status_code}")
+
+    complete2 = client.post(f"/lessons/{lesson_id}/complete?user_id={uid}", json={})
+    log("completed_readonly_second_complete_rejected", "PASS" if complete2.status_code == 400 else "FAIL", f"status={complete2.status_code}")
+
+    db = TestSession()
+    try:
+        from api.models.orm import UserTokenProgress
+        progress_count_after = db.query(UserTokenProgress).filter(UserTokenProgress.user_id == uid).count()
+        log("completed_readonly_no_reapply_progress", "PASS" if progress_count_after == progress_count_before else "FAIL", f"before={progress_count_before}, after={progress_count_after}")
+    finally:
+        db.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Runner
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -809,6 +1085,12 @@ def main():
         test_deferred_srs_no_progress_on_answer()
         test_lesson_invalidation()
         test_back_to_back_lessons()
+        test_create_next_fresh_user()
+        test_create_next_reuses_active_lesson()
+        test_timeline_returns_stored_lessons()
+        test_get_by_id_returns_exact_lesson()
+        test_review_lesson_get_by_id_returns_full_payload()
+        test_completed_lesson_read_only_and_no_reapply()
     finally:
         teardown_db()
 

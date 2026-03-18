@@ -1,7 +1,16 @@
 import 'package:flutter/foundation.dart';
 import '../../../../shared/models/models.dart';
 
-enum LessonPhase { loading, ready, submitting, feedback, completing, completed, error, empty }
+enum LessonPhase {
+  loading,
+  ready,
+  submitting,
+  feedback,
+  completing,
+  completed,
+  error,
+  empty,
+}
 
 @immutable
 class LessonState {
@@ -34,6 +43,7 @@ class LessonState {
   int get totalSteps => lesson?.steps.length ?? 0;
   bool get isLastStep => currentStepIndex >= totalSteps - 1;
   bool get canSubmit {
+    if (lesson?.readOnly == true) return false;
     if (phase != LessonPhase.ready) return false;
     final step = currentStep;
     if (step == null) return false;
@@ -56,10 +66,14 @@ class LessonState {
       phase: phase ?? this.phase,
       lesson: lesson ?? this.lesson,
       currentStepIndex: currentStepIndex ?? this.currentStepIndex,
-      selectedOption: selectedOption != null ? selectedOption() : this.selectedOption,
+      selectedOption: selectedOption != null
+          ? selectedOption()
+          : this.selectedOption,
       orderedTokenIds: orderedTokenIds ?? this.orderedTokenIds,
       lastAnswer: lastAnswer != null ? lastAnswer() : this.lastAnswer,
-      completeSummary: completeSummary != null ? completeSummary() : this.completeSummary,
+      completeSummary: completeSummary != null
+          ? completeSummary()
+          : this.completeSummary,
       errorMessage: errorMessage != null ? errorMessage() : this.errorMessage,
     );
   }

@@ -27,11 +27,17 @@ class EmptyStateBlock extends StatelessWidget {
         children: [
           Icon(icon, size: 56, color: AppColors.textTertiary),
           const SizedBox(height: AppSpacing.s5),
-          Text(title, style: AppTypography.titleMd, textAlign: TextAlign.center),
+          Text(
+            title,
+            style: AppTypography.titleMd,
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: AppSpacing.s2),
           Text(
             body,
-            style: AppTypography.bodyMd.copyWith(color: AppColors.textSecondary),
+            style: AppTypography.bodyMd.copyWith(
+              color: AppColors.textSecondary,
+            ),
             textAlign: TextAlign.center,
           ),
           if (ctaLabel != null) ...[

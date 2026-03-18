@@ -19,9 +19,17 @@ class ErrorStateBlock extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, size: 56, color: AppColors.errorDefault),
+          const Icon(
+            Icons.error_outline,
+            size: 56,
+            color: AppColors.errorDefault,
+          ),
           const SizedBox(height: AppSpacing.s5),
-          Text(message, style: AppTypography.bodyLg, textAlign: TextAlign.center),
+          Text(
+            message,
+            style: AppTypography.bodyLg,
+            textAlign: TextAlign.center,
+          ),
           if (onRetry != null) ...[
             const SizedBox(height: AppSpacing.s6),
             SizedBox(

@@ -326,14 +326,32 @@ def compute_dynamic_counts(
     target_steps: int = 14,
     base_new: int = 3,
     base_review: int = 15,
+    actual_due: int | None = None,
 ) -> tuple[int, int]:
-    """Compute (new_count, review_count) based on how many words user knows.
+    """Compute (new_count, review_count) based on user state.
 
-    Ramp schedule:
+    This is the canonical planner for Next Lesson.  It decides the mix of
+    new-word introduction vs review based on:
+      1. total_known_words — ramp schedule for beginners
+      2. actual_due — review pressure from SRS queue
+
+    Ramp schedule (by known words):
       0-10 known words  → ratio ~1:1 (learn fast at start)
       10-30             → ratio ~2:1
       30-60             → ratio ~3:1
       60+               → ratio 5:1 (standard)
+
+    Review-pressure override:
+      When actual_due is provided, the planner throttles new words to ensure
+      the due backlog is addressed first.  This is the key mechanism that
+      makes Next Lesson the single canonical pipeline — the user never needs
+      a separate review-only mode because Next Lesson automatically absorbs
+      review pressure.
+
+      - due >= 10  → new_count capped at 1 (heavy review pressure)
+      - due >= 6   → new_count capped at 2 (moderate pressure)
+      - due >= 3   → new_count reduced by 1 from baseline
+      - due == 0   → no constraint (but also no artificial reviews)
 
     Returns (new_count, review_count) that together fit ~target_steps.
     """
@@ -361,5 +379,18 @@ def compute_dynamic_counts(
     # Clamp to reasonable bounds
     new_count = min(new_count, base_new + 2)
     review_count = min(review_count, base_review)
+
+    # --- Review-pressure throttle (canonical pipeline logic) ---
+    # When there are many due reviews, suppress new words so the user
+    # addresses their backlog through the normal Next Lesson flow.
+    if actual_due is not None and actual_due > 0:
+        if actual_due >= 10:
+            new_count = min(new_count, 1)
+        elif actual_due >= 6:
+            new_count = min(new_count, 2)
+        elif actual_due >= 3:
+            new_count = max(1, new_count - 1)
+        # Ensure review budget covers the actual due queue
+        review_count = max(review_count, min(actual_due, base_review))
 
     return new_count, review_count

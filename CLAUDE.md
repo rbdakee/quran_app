@@ -8,9 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Quran Learning App** — full-stack spaced repetition system (SRS) for learning Quranic Arabic.
 
-- **Algorithm**: `v3-graduated-srs-dynamic-ratio` — implicit SRS with graduated learning steps (4h → 1d → 3d → 7d)
-- **Backend**: FastAPI + PostgreSQL, fully complete (Phase D PASSED: 152/152 tests)
-- **Frontend**: Flutter with Riverpod — foundation ready, currently in hardening (Phase E, ~60%)
+- **Algorithm base**: `v3-graduated-srs-dynamic-ratio`
+- **Current product state**: canonical **Next Lesson** pipeline is now the primary flow
+- **Backend**: FastAPI + PostgreSQL with lesson timeline, stored lesson payloads, active-lesson reuse, integrity guards, and progress-trust improvements
+- **Frontend**: Flutter with Riverpod aligned to `/lessons` as the primary route
+- **Current strategic focus**: adaptive `Next Lesson` progression with weighted scoring, stronger consolidation, and earned new-word expansion
 - **Core principle**: Algorithm-first, Quality-first, Quran-safe
 
 ---
@@ -228,31 +230,32 @@ Each renderer tracks user signals: `latency_ms`, `hint_used`, `is_correct`, `att
 
 ---
 
-## Current Status (Phase E)
+## Current Status (2026-03-18)
 
-**Backend**: ✅ Complete — 152/152 tests passing
-**Frontend**: 🔄 In progress (~60%)
+**Backend**: ✅ Canonical next-lesson pipeline, lesson timeline, integrity fixes, progress-trust fixes completed
+**Frontend**: ✅ Canonical `/lessons` alignment completed; further work moves to adaptive planner UX later
 
-### Done
-- Routing, feature modules, Riverpod providers, repositories
-- All 9 step renderers implemented
-- DTO models (Freezed + JSON serializable)
-- Network layer (Dio + error handling)
-- Design tokens + shared theme
+### Implemented recently
+- canonical `create-next` + timeline flow
+- stored lesson payload retrieval by lesson id
+- active lesson reuse and read-only completed lessons
+- lesson completion integrity guard
+- non-inflated lesson counters for ayah steps
+- concept-key persistence and coherent engagement recomputation
+- frontend route realignment from `/today` to `/lessons`
+- review-only UX demotion to secondary/additional practice
 
-### Remaining
-- [ ] Loading/error/empty states hardening across all screens
-- [ ] Widget tests for key journeys (>80% coverage target)
-- [ ] Audio playback (just_audio integration)
-- [ ] Ayah assembly UX validation (tap mechanics)
-- [ ] Offline/error recovery (connectivity_plus)
+### Current strategic focus
+- adaptive `Next Lesson` planner
+- weighted scoring layer (explainable, not neural-network weights)
+- stronger consolidation-first behavior
+- gradual earned expansion of new words (`1 -> 2 -> 3`)
+- reinforcement as a first-class layer
+- concept-aware learning truth
 
-### Phase E DoD
-- Full cycle: load → answer steps → complete → summary
-- Progress/Reviews receive live backend data
-- All 6 design screens implemented
-- No runtime errors on happy path
-- Widget tests covering main flows
+### Key planning docs for next session
+- `IMPLEMENTATION_PLAN_NEXT_LESSON_PIPELINE.md`
+- `IMPLEMENTATION_PLAN_V2_ADAPTIVE_NEXT_LESSON.md`
 
 ---
 

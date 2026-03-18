@@ -7,11 +7,7 @@ class StatusBanner extends StatelessWidget {
   final StatusBannerType type;
   final String? message;
 
-  const StatusBanner({
-    super.key,
-    required this.type,
-    this.message,
-  });
+  const StatusBanner({super.key, required this.type, this.message});
 
   @override
   Widget build(BuildContext context) {

@@ -6,8 +6,9 @@ import '../../../../shared/models/models.dart';
 import '../../data/lesson_repository.dart';
 import 'lesson_state.dart';
 
-final lessonNotifierProvider =
-    NotifierProvider<LessonNotifier, LessonState>(LessonNotifier.new);
+final lessonNotifierProvider = NotifierProvider<LessonNotifier, LessonState>(
+  LessonNotifier.new,
+);
 
 class LessonNotifier extends Notifier<LessonState> {
   late final LessonRepository _repo;
@@ -16,39 +17,12 @@ class LessonNotifier extends Notifier<LessonState> {
   @override
   LessonState build() {
     _repo = ref.watch(lessonRepositoryProvider);
-    // Auto-load on creation
-    Future.microtask(() => loadLesson());
     return const LessonState();
   }
 
   // ── Load ──
 
-  Future<void> loadLesson() async {
-    state = state.copyWith(phase: LessonPhase.loading);
-    try {
-      final lesson = await _repo.getNextLesson();
-      if (lesson.steps.isEmpty) {
-        state = state.copyWith(phase: LessonPhase.empty);
-      } else {
-        state = state.copyWith(
-          phase: LessonPhase.ready,
-          lesson: lesson,
-          currentStepIndex: 0,
-          selectedOption: () => null,
-          orderedTokenIds: [],
-          lastAnswer: () => null,
-        );
-        _stepShownAt = DateTime.now();
-      }
-    } catch (e) {
-      state = state.copyWith(
-        phase: LessonPhase.error,
-        errorMessage: () => _errorMsg(e),
-      );
-    }
-  }
-
-  /// Load lesson by ID from backend (used by review lessons)
+  /// Load lesson by ID from backend (exact lesson instance)
   Future<void> loadLessonById(String lessonId) async {
     state = state.copyWith(phase: LessonPhase.loading);
     try {
@@ -97,7 +71,9 @@ class LessonNotifier extends Notifier<LessonState> {
   void removeToken(String tokenId) {
     if (state.phase != LessonPhase.ready) return;
     state = state.copyWith(
-      orderedTokenIds: state.orderedTokenIds.where((id) => id != tokenId).toList(),
+      orderedTokenIds: state.orderedTokenIds
+          .where((id) => id != tokenId)
+          .toList(),
     );
   }
 
@@ -106,7 +82,7 @@ class LessonNotifier extends Notifier<LessonState> {
   Future<void> submitAnswer() async {
     final step = state.currentStep;
     final lesson = state.lesson;
-    if (step == null || lesson == null) return;
+    if (step == null || lesson == null || lesson.readOnly) return;
     if (state.phase == LessonPhase.submitting) return;
 
     state = state.copyWith(phase: LessonPhase.submitting);
@@ -157,6 +133,10 @@ class LessonNotifier extends Notifier<LessonState> {
   // ── Next Step ──
 
   void nextStep() {
+    if (state.lesson?.readOnly == true) {
+      advanceReadOnlyStep();
+      return;
+    }
     if (state.isLastStep) {
       _completeLesson();
     } else {
@@ -169,6 +149,18 @@ class LessonNotifier extends Notifier<LessonState> {
       );
       _stepShownAt = DateTime.now();
     }
+  }
+
+  void advanceReadOnlyStep() {
+    if (state.lesson == null || state.phase == LessonPhase.loading) return;
+    if (state.isLastStep) return;
+    state = state.copyWith(
+      phase: LessonPhase.ready,
+      currentStepIndex: state.currentStepIndex + 1,
+      selectedOption: () => null,
+      orderedTokenIds: [],
+      lastAnswer: () => null,
+    );
   }
 
   // ── Complete ──

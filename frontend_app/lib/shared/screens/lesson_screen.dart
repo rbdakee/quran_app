@@ -2,20 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/theme/theme.dart';
 import '../../features/today/presentation/providers/lesson_notifier.dart';
 import '../../features/today/presentation/providers/lesson_state.dart';
 import '../../features/today/presentation/widgets/step_renderer.dart';
-import '../../core/theme/theme.dart';
 import '../widgets/widgets.dart';
 
-/// Reusable lesson screen for both /today and /reviews-words lessons.
 class LessonScreen extends ConsumerStatefulWidget {
   final String lessonId;
 
-  const LessonScreen({
-    required this.lessonId,
-    super.key,
-  });
+  const LessonScreen({required this.lessonId, super.key});
 
   @override
   ConsumerState<LessonScreen> createState() => _LessonScreenState();
@@ -25,10 +21,7 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
   @override
   void initState() {
     super.initState();
-    // Load lesson on screen open
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Note: LessonNotifier loads /lessons/next by default
-      // For review lessons, would need to pass lesson_id explicitly
       ref.read(lessonNotifierProvider.notifier).loadLessonById(widget.lessonId);
     });
   }
@@ -40,33 +33,35 @@ class _LessonScreenState extends ConsumerState<LessonScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Урок'),
+        title: Text(
+          state.lesson?.readOnly == true ? 'Урок · Только чтение' : 'Урок',
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
             if (context.canPop()) {
               context.pop();
             } else {
-              context.go('/today');
+              context.go('/lessons');
             }
           },
         ),
       ),
       body: switch (state.phase) {
         LessonPhase.loading => const Center(
-            child: CircularProgressIndicator(color: AppColors.accentPrimary),
-          ),
+          child: CircularProgressIndicator(color: AppColors.accentPrimary),
+        ),
         LessonPhase.error => ErrorStateBlock(
-            message: state.errorMessage ?? 'Не удалось загрузить урок',
-            onRetry: () => notifier.loadLessonById(widget.lessonId),
-          ),
+          message: state.errorMessage ?? 'Не удалось загрузить урок',
+          onRetry: () => notifier.loadLessonById(widget.lessonId),
+        ),
         LessonPhase.empty => EmptyStateBlock(
-            icon: Icons.auto_stories_outlined,
-            title: 'Урок пуст',
-            body: 'Нет шагов для прохождения.',
-            ctaLabel: 'Вернуться',
-            onCta: () => context.pop(),
-          ),
+          icon: Icons.auto_stories_outlined,
+          title: 'Урок пуст',
+          body: 'Нет шагов для прохождения.',
+          ctaLabel: 'Вернуться',
+          onCta: () => context.pop(),
+        ),
         LessonPhase.completed => _CompletedRedirect(context: context),
         _ => _LessonBody(state: state, notifier: notifier),
       },
@@ -87,13 +82,14 @@ class _CompletedRedirectState extends State<_CompletedRedirect> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.go('/today/summary');
+      context.go('/lessons/summary');
     });
   }
 
   @override
-  Widget build(BuildContext context) =>
-      const Center(child: CircularProgressIndicator(color: AppColors.accentPrimary));
+  Widget build(BuildContext context) => const Center(
+    child: CircularProgressIndicator(color: AppColors.accentPrimary),
+  );
 }
 
 class _LessonBody extends StatelessWidget {
@@ -105,8 +101,10 @@ class _LessonBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final step = state.currentStep;
-    if (step == null) return const SizedBox.shrink();
+    final lesson = state.lesson;
+    if (step == null || lesson == null) return const SizedBox.shrink();
 
+    final isReadOnly = lesson.readOnly;
     final isSubmitting = state.phase == LessonPhase.submitting;
     final isInFeedback = state.phase == LessonPhase.feedback;
     final isLastStep = state.isLastStep;
@@ -116,33 +114,58 @@ class _LessonBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Progress indicator
+          if (isReadOnly) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.orange.withValues(alpha: 0.35),
+                ),
+              ),
+              child: const Text(
+                'Этот урок открыт в режиме только чтения. Ответы изменить нельзя.',
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           Text(
-            'Шаг ${state.currentStepIndex + 1} / ${state.lesson?.steps.length ?? '?'}',
+            'Шаг ${state.currentStepIndex + 1} / ${lesson.steps.length}',
             style: Theme.of(context).textTheme.bodySmall,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          // Step renderer
-          StepRenderer(
-            step: step,
-            lessonState: state,
-          ),
+          StepRenderer(step: step, lessonState: state),
           const SizedBox(height: 24),
-          // CTA buttons
           if (isSubmitting)
             const Center(
               child: CircularProgressIndicator(color: AppColors.accentPrimary),
             )
+          else if (isReadOnly)
+            PrimaryButton(
+              label: isLastStep ? 'Закрыть' : 'Далее',
+              onPressed: () {
+                if (isLastStep) {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/lessons');
+                  }
+                } else {
+                  notifier.advanceReadOnlyStep();
+                }
+              },
+            )
           else if (isInFeedback)
-            ElevatedButton(
-              onPressed: () => notifier.nextStep(),
-              child: Text(isLastStep ? 'Завершить' : 'Далее'),
+            PrimaryButton(
+              label: isLastStep ? 'Завершить' : 'Далее',
+              onPressed: notifier.nextStep,
             )
           else
-            ElevatedButton(
-              onPressed: () => notifier.submitAnswer(),
-              child: const Text('Ответить'),
+            PrimaryButton(
+              label: 'Ответить',
+              onPressed: state.canSubmit ? notifier.submitAnswer : null,
             ),
         ],
       ),

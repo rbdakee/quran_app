@@ -49,12 +49,15 @@ class AyahBuildStepView extends ConsumerWidget {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          textDirection: _isArabicBuild() ? TextDirection.rtl : TextDirection.ltr,
+          textDirection: _isArabicBuild()
+              ? TextDirection.rtl
+              : TextDirection.ltr,
           children: List.generate(slotCount, (i) {
             final hasToken = i < placed.length;
             final tokenId = hasToken ? placed[i] : null;
             final tokenText = hasToken
-                ? pool.where((t) => t.tokenId == tokenId).firstOrNull?.text ?? '?'
+                ? pool.where((t) => t.tokenId == tokenId).firstOrNull?.text ??
+                      '?'
                 : null;
 
             Color borderColor = AppColors.borderDefault;
@@ -71,11 +74,19 @@ class AyahBuildStepView extends ConsumerWidget {
               child: AnimatedContainer(
                 duration: AppDurations.fast,
                 constraints: const BoxConstraints(minWidth: 56, minHeight: 44),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: hasToken ? AppColors.surfaceElevated : Colors.transparent,
+                  color: hasToken
+                      ? AppColors.surfaceElevated
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: borderColor, width: isInFeedback ? 1.5 : 1),
+                  border: Border.all(
+                    color: borderColor,
+                    width: isInFeedback ? 1.5 : 1,
+                  ),
                 ),
                 child: hasToken
                     ? Text(
@@ -83,11 +94,15 @@ class AyahBuildStepView extends ConsumerWidget {
                         style: _isArabicBuild()
                             ? AppTypography.arabicInline
                             : AppTypography.bodyMd,
-                        textDirection: _isArabicBuild() ? TextDirection.rtl : null,
+                        textDirection: _isArabicBuild()
+                            ? TextDirection.rtl
+                            : null,
                       )
                     : Text(
                         '${i + 1}',
-                        style: AppTypography.labelSm.copyWith(color: AppColors.textTertiary),
+                        style: AppTypography.labelSm.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
               ),
             );
@@ -101,7 +116,9 @@ class AyahBuildStepView extends ConsumerWidget {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          textDirection: _isArabicBuild() ? TextDirection.rtl : TextDirection.ltr,
+          textDirection: _isArabicBuild()
+              ? TextDirection.rtl
+              : TextDirection.ltr,
           children: pool.map((token) {
             final isPlaced = placed.contains(token.tokenId);
             return AnimatedOpacity(
@@ -112,7 +129,10 @@ class AyahBuildStepView extends ConsumerWidget {
                     ? null
                     : () => notifier.addToken(token.tokenId),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surfaceElevated,
                     borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
@@ -155,13 +175,13 @@ class AyahBuildStepView extends ConsumerWidget {
     return Column(
       children: [
         if (audioKeys.isNotEmpty)
-          AudioPlayButton(
-            audioKey: audioKeys.first,
-            surah: surah,
-            size: 64,
-          )
+          AudioPlayButton(audioKey: audioKeys.first, surah: surah, size: 64)
         else
-          const Icon(Icons.headphones, size: 40, color: AppColors.accentPrimary),
+          const Icon(
+            Icons.headphones,
+            size: 40,
+            color: AppColors.accentPrimary,
+          ),
         const SizedBox(height: 8),
         Text(
           'Прослушайте и соберите',

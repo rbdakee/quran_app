@@ -48,7 +48,7 @@ $env:PYTHONIOENCODING='utf-8'; python -m tests.test_learning_pace
 ```
 Outputs: 30/60-day simulations showing review frequency, time-to-mastery, ratio dynamics.
 
-## 2.5 Backend API (Phase C)
+## 2.5 Backend API (current state)
 
 ### First-time setup
 ```bash
@@ -70,12 +70,17 @@ python -m uvicorn api.main:app --reload --port 8000
 | GET | `/` | App info |
 | GET | `/health` | Health check |
 | GET | `/docs` | OpenAPI Swagger UI |
-| GET | `/lessons/today?user_id=X&seed=N` | Generate lesson |
+| POST | `/lessons/create-next?user_id=X` | Canonical progression path (create or reopen active lesson) |
+| GET | `/lessons/timeline?user_id=X&limit=N` | Lesson history + active CTA state |
+| GET | `/lessons/{id}?user_id=X` | Exact stored lesson instance |
+| GET | `/lessons/next?user_id=X&seed=N` | Legacy/debug force-generate lesson |
+| GET | `/lessons/today?user_id=X&seed=N` | Deprecated compatibility alias |
 | POST | `/lessons/{id}/answer?user_id=X` | Submit answer |
 | POST | `/lessons/{id}/complete?user_id=X` | Complete lesson |
 | GET | `/progress/summary?user_id=X` | Progress summary |
 | GET | `/progress/reviews-due?user_id=X` | Due tokens |
 | GET | `/progress/engagement?user_id=X` | Engagement stats |
+| GET | `/progress/reviews-words?user_id=X` | Secondary/additional review-only lesson |
 
 ### Re-import dataset (if needed)
 ```sql

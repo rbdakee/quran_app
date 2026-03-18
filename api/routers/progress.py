@@ -60,20 +60,27 @@ def reviews_words(
     db: Session = Depends(get_db),
 ):
     """
-    Generate review-only lesson from known words.
-    
+    **DEMOTED** — Optional review-only lesson for debug/testing/extra practice.
+
+    This is NOT the canonical learning path.  Use POST /lessons/create-next
+    for the primary progression pipeline.  Next Lesson automatically absorbs
+    review pressure and throttles new words when due reviews are high.
+
+    This endpoint remains available for:
+    - Admin/debug inspection of review-only behavior
+    - Optional extra practice outside the canonical flow
+    - Backward compatibility during transition
+
     Prioritizes words with next_review_at <= now, then adds random words.
     No new words added by backend.
-    
-    Query params:
-    - user_id: optional, default "default_user"
-    - seed: optional int, auto-generates if omitted
-    - limit: 1-50, default 20
     """
     if seed is None:
         seed = int(time.time()) % 100000
     
     lesson = generate_review_lesson(db, user_id, seed=seed, word_limit=limit)
+    
+    # Mark as non-canonical so consumers know this is optional
+    lesson["pipeline"] = "review_only_optional"
     
     # Cache for answer processing (shared with lessons)
     cache_lesson(lesson["lesson_id"], lesson)

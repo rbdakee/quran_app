@@ -10,6 +10,8 @@ abstract class LessonResponse with _$LessonResponse {
     @JsonKey(name: 'lesson_id') required String lessonId,
     @JsonKey(name: 'generated_at_utc') required String generatedAtUtc,
     @JsonKey(name: 'algorithm_version') required String algorithmVersion,
+    String? status,
+    @JsonKey(name: 'read_only') @Default(false) bool readOnly,
     LessonConfig? config,
     @JsonKey(name: 'dynamic') LessonDynamic? lessonDynamic,
     LessonSelection? selection,

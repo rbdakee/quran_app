@@ -593,8 +593,54 @@ Distractors:
 
 ---
 
-## 10) Immediate next actions
-1. Подготовить `backend_contracts.md` (точные JSON схемы lesson и answer event).
-2. Добавить seed-batch quality report script.
-3. Зафиксировать SQL schema для progress + engagement.
-4. Начать перенос генератора из скрипта в backend service.
+## 10) Current state snapshot (2026-03-18)
+
+### What we have now
+- `POST /lessons/create-next` закреплён как canonical progression entry point.
+- `GET /lessons/timeline` и `GET /lessons/{lesson_id}` работают как source-of-truth для history + exact stored lesson instance.
+- Lesson lifecycle поддерживает:
+  - `generated`
+  - `in_progress`
+  - `completed`
+  - `invalidated`
+- Completed lessons read-only.
+- Active lesson reuse работает и предотвращает дублирование.
+- Lesson completion integrity усилена:
+  - нельзя завершить lesson, если он реально не пройден.
+- Ayah step lesson-metric inflation исправлен на lesson-level counters.
+- Progress trust усилен:
+  - `concept_key` persistence исправлен
+  - engagement/streak metrics пересчитываются согласованно
+  - review distribution улучшен на уровне ayah spread
+- Frontend выровнен под canonical `/lessons` flow:
+  - `/today` demoted to redirect compatibility
+  - review-only UX demoted to additional practice
+  - summary возвращает пользователя в canonical next-flow
+
+### Brief note on bug fixes since previous push
+- fixed migration/persistence issues for lesson timeline payloads
+- fixed create-next / get-by-id contract mismatches
+- fixed incomplete lesson completion bug
+- fixed lesson metric inflation from ayah multi-token steps
+- fixed progress trust issues (`concept_key`, engagement coherence)
+
+## 11) Current strategic focus
+
+Основной фокус больше не на legacy cleanup, а на **Adaptive Next Lesson v2**:
+- tempo-aware planning
+- stronger consolidation emphasis when lessons are taken soon after each other
+- gradual new-word unlocking (1 → 2 → 3 ...)
+- reinforcement as a meaningful first-class layer
+- concept-aware learning truth
+- explainable weighted scoring instead of black-box ML
+
+Primary planning docs:
+- `IMPLEMENTATION_PLAN_NEXT_LESSON_PIPELINE.md`
+- `IMPLEMENTATION_PLAN_V2_ADAPTIVE_NEXT_LESSON.md`
+
+## 12) Immediate next actions
+1. Спроектировать adaptive planner inputs для tempo-aware decision making.
+2. Внедрить explainable weighted scoring layer в canonical planner.
+3. Добавить expansion ladder для новых слов (`1 -> 2 -> 3`).
+4. Усилить reinforcement как отдельный meaningful layer внутри `Next Lesson`.
+5. Повторно прогонять multi-day simulations и тюнить thresholds/weights.

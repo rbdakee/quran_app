@@ -11,11 +11,7 @@ class McqStepView extends ConsumerWidget {
   final LessonStep step;
   final LessonState lessonState;
 
-  const McqStepView({
-    super.key,
-    required this.step,
-    required this.lessonState,
-  });
+  const McqStepView({super.key, required this.step, required this.lessonState});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -63,11 +59,17 @@ class McqStepView extends ConsumerWidget {
                       size: 64,
                     )
                   else
-                    const Icon(Icons.headphones, size: 40, color: AppColors.accentPrimary),
+                    const Icon(
+                      Icons.headphones,
+                      size: 40,
+                      color: AppColors.accentPrimary,
+                    ),
                   const SizedBox(height: 8),
                   Text(
                     'Прослушайте и выберите ответ',
-                    style: AppTypography.bodyMd.copyWith(color: AppColors.textSecondary),
+                    style: AppTypography.bodyMd.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -101,7 +103,9 @@ class McqStepView extends ConsumerWidget {
   }
 
   bool _showArabicPrompt(String type) =>
-      type == 'meaning_choice' || type == 'review_card' || type == 'reinforcement';
+      type == 'meaning_choice' ||
+      type == 'review_card' ||
+      type == 'reinforcement';
 
   String _instructionFor(String type) {
     return switch (type) {

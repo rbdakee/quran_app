@@ -11,6 +11,8 @@ _LessonResponse _$LessonResponseFromJson(Map<String, dynamic> json) =>
       lessonId: json['lesson_id'] as String,
       generatedAtUtc: json['generated_at_utc'] as String,
       algorithmVersion: json['algorithm_version'] as String,
+      status: json['status'] as String?,
+      readOnly: json['read_only'] as bool? ?? false,
       config: json['config'] == null
           ? null
           : LessonConfig.fromJson(json['config'] as Map<String, dynamic>),
@@ -33,6 +35,8 @@ Map<String, dynamic> _$LessonResponseToJson(_LessonResponse instance) =>
       'lesson_id': instance.lessonId,
       'generated_at_utc': instance.generatedAtUtc,
       'algorithm_version': instance.algorithmVersion,
+      'status': instance.status,
+      'read_only': instance.readOnly,
       'config': instance.config,
       'dynamic': instance.lessonDynamic,
       'selection': instance.selection,

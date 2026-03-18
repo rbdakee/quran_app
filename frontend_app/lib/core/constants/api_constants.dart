@@ -5,12 +5,15 @@ abstract final class ApiConstants {
 
   // ── Endpoints ──
   static const String health = '/health';
+  static const String lessonsTimeline = '/lessons/timeline';
+  static const String lessonsCreateNext = '/lessons/create-next';
   static const String lessonNext = '/lessons/next';
-  @Deprecated('Use lessonNext instead')
+  @Deprecated('Legacy endpoint; use timeline/create-next flow instead')
   static const String lessonToday = '/lessons/today';
   static String lessonById(String lessonId) => '/lessons/$lessonId';
   static String lessonAnswer(String lessonId) => '/lessons/$lessonId/answer';
-  static String lessonComplete(String lessonId) => '/lessons/$lessonId/complete';
+  static String lessonComplete(String lessonId) =>
+      '/lessons/$lessonId/complete';
   static const String progressSummary = '/progress/summary';
   static const String reviewsDue = '/progress/reviews-due';
   static const String reviewsWords = '/progress/reviews-words';

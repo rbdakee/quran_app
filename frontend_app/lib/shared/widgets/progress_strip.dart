@@ -5,11 +5,7 @@ class ProgressStrip extends StatelessWidget {
   final int current;
   final int total;
 
-  const ProgressStrip({
-    super.key,
-    required this.current,
-    required this.total,
-  });
+  const ProgressStrip({super.key, required this.current, required this.total});
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +31,9 @@ class ProgressStrip extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 backgroundColor: AppColors.surfaceMuted,
-                valueColor: const AlwaysStoppedAnimation(AppColors.accentPrimary),
+                valueColor: const AlwaysStoppedAnimation(
+                  AppColors.accentPrimary,
+                ),
                 minHeight: AppSpacing.progressHeight,
               ),
             ),

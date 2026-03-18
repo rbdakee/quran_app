@@ -30,14 +30,13 @@ class MetricCard extends StatelessWidget {
             Icon(icon, size: 18, color: AppColors.textTertiary),
             const SizedBox(height: 6),
           ],
-          Text(
-            value,
-            style: AppTypography.titleLg.copyWith(fontSize: 26),
-          ),
+          Text(value, style: AppTypography.titleLg.copyWith(fontSize: 26)),
           const SizedBox(height: 4),
           Text(
             label,
-            style: AppTypography.bodySm.copyWith(color: AppColors.textSecondary),
+            style: AppTypography.bodySm.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),

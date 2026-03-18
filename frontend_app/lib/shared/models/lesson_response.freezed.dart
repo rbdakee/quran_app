@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$LessonResponse {
 
-@JsonKey(name: 'lesson_id') String get lessonId;@JsonKey(name: 'generated_at_utc') String get generatedAtUtc;@JsonKey(name: 'algorithm_version') String get algorithmVersion; LessonConfig? get config;@JsonKey(name: 'dynamic') LessonDynamic? get lessonDynamic; LessonSelection? get selection; List<LessonStep> get steps; LessonNotes? get notes;
+@JsonKey(name: 'lesson_id') String get lessonId;@JsonKey(name: 'generated_at_utc') String get generatedAtUtc;@JsonKey(name: 'algorithm_version') String get algorithmVersion; String? get status;@JsonKey(name: 'read_only') bool get readOnly; LessonConfig? get config;@JsonKey(name: 'dynamic') LessonDynamic? get lessonDynamic; LessonSelection? get selection; List<LessonStep> get steps; LessonNotes? get notes;
 /// Create a copy of LessonResponse
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $LessonResponseCopyWith<LessonResponse> get copyWith => _$LessonResponseCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LessonResponse&&(identical(other.lessonId, lessonId) || other.lessonId == lessonId)&&(identical(other.generatedAtUtc, generatedAtUtc) || other.generatedAtUtc == generatedAtUtc)&&(identical(other.algorithmVersion, algorithmVersion) || other.algorithmVersion == algorithmVersion)&&(identical(other.config, config) || other.config == config)&&(identical(other.lessonDynamic, lessonDynamic) || other.lessonDynamic == lessonDynamic)&&(identical(other.selection, selection) || other.selection == selection)&&const DeepCollectionEquality().equals(other.steps, steps)&&(identical(other.notes, notes) || other.notes == notes));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LessonResponse&&(identical(other.lessonId, lessonId) || other.lessonId == lessonId)&&(identical(other.generatedAtUtc, generatedAtUtc) || other.generatedAtUtc == generatedAtUtc)&&(identical(other.algorithmVersion, algorithmVersion) || other.algorithmVersion == algorithmVersion)&&(identical(other.status, status) || other.status == status)&&(identical(other.readOnly, readOnly) || other.readOnly == readOnly)&&(identical(other.config, config) || other.config == config)&&(identical(other.lessonDynamic, lessonDynamic) || other.lessonDynamic == lessonDynamic)&&(identical(other.selection, selection) || other.selection == selection)&&const DeepCollectionEquality().equals(other.steps, steps)&&(identical(other.notes, notes) || other.notes == notes));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,lessonId,generatedAtUtc,algorithmVersion,config,lessonDynamic,selection,const DeepCollectionEquality().hash(steps),notes);
+int get hashCode => Object.hash(runtimeType,lessonId,generatedAtUtc,algorithmVersion,status,readOnly,config,lessonDynamic,selection,const DeepCollectionEquality().hash(steps),notes);
 
 @override
 String toString() {
-  return 'LessonResponse(lessonId: $lessonId, generatedAtUtc: $generatedAtUtc, algorithmVersion: $algorithmVersion, config: $config, lessonDynamic: $lessonDynamic, selection: $selection, steps: $steps, notes: $notes)';
+  return 'LessonResponse(lessonId: $lessonId, generatedAtUtc: $generatedAtUtc, algorithmVersion: $algorithmVersion, status: $status, readOnly: $readOnly, config: $config, lessonDynamic: $lessonDynamic, selection: $selection, steps: $steps, notes: $notes)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $LessonResponseCopyWith<$Res>  {
   factory $LessonResponseCopyWith(LessonResponse value, $Res Function(LessonResponse) _then) = _$LessonResponseCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'lesson_id') String lessonId,@JsonKey(name: 'generated_at_utc') String generatedAtUtc,@JsonKey(name: 'algorithm_version') String algorithmVersion, LessonConfig? config,@JsonKey(name: 'dynamic') LessonDynamic? lessonDynamic, LessonSelection? selection, List<LessonStep> steps, LessonNotes? notes
+@JsonKey(name: 'lesson_id') String lessonId,@JsonKey(name: 'generated_at_utc') String generatedAtUtc,@JsonKey(name: 'algorithm_version') String algorithmVersion, String? status,@JsonKey(name: 'read_only') bool readOnly, LessonConfig? config,@JsonKey(name: 'dynamic') LessonDynamic? lessonDynamic, LessonSelection? selection, List<LessonStep> steps, LessonNotes? notes
 });
 
 
@@ -65,12 +65,14 @@ class _$LessonResponseCopyWithImpl<$Res>
 
 /// Create a copy of LessonResponse
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? lessonId = null,Object? generatedAtUtc = null,Object? algorithmVersion = null,Object? config = freezed,Object? lessonDynamic = freezed,Object? selection = freezed,Object? steps = null,Object? notes = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? lessonId = null,Object? generatedAtUtc = null,Object? algorithmVersion = null,Object? status = freezed,Object? readOnly = null,Object? config = freezed,Object? lessonDynamic = freezed,Object? selection = freezed,Object? steps = null,Object? notes = freezed,}) {
   return _then(_self.copyWith(
 lessonId: null == lessonId ? _self.lessonId : lessonId // ignore: cast_nullable_to_non_nullable
 as String,generatedAtUtc: null == generatedAtUtc ? _self.generatedAtUtc : generatedAtUtc // ignore: cast_nullable_to_non_nullable
 as String,algorithmVersion: null == algorithmVersion ? _self.algorithmVersion : algorithmVersion // ignore: cast_nullable_to_non_nullable
-as String,config: freezed == config ? _self.config : config // ignore: cast_nullable_to_non_nullable
+as String,status: freezed == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
+as String?,readOnly: null == readOnly ? _self.readOnly : readOnly // ignore: cast_nullable_to_non_nullable
+as bool,config: freezed == config ? _self.config : config // ignore: cast_nullable_to_non_nullable
 as LessonConfig?,lessonDynamic: freezed == lessonDynamic ? _self.lessonDynamic : lessonDynamic // ignore: cast_nullable_to_non_nullable
 as LessonDynamic?,selection: freezed == selection ? _self.selection : selection // ignore: cast_nullable_to_non_nullable
 as LessonSelection?,steps: null == steps ? _self.steps : steps // ignore: cast_nullable_to_non_nullable
@@ -208,10 +210,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'lesson_id')  String lessonId, @JsonKey(name: 'generated_at_utc')  String generatedAtUtc, @JsonKey(name: 'algorithm_version')  String algorithmVersion,  LessonConfig? config, @JsonKey(name: 'dynamic')  LessonDynamic? lessonDynamic,  LessonSelection? selection,  List<LessonStep> steps,  LessonNotes? notes)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'lesson_id')  String lessonId, @JsonKey(name: 'generated_at_utc')  String generatedAtUtc, @JsonKey(name: 'algorithm_version')  String algorithmVersion,  String? status, @JsonKey(name: 'read_only')  bool readOnly,  LessonConfig? config, @JsonKey(name: 'dynamic')  LessonDynamic? lessonDynamic,  LessonSelection? selection,  List<LessonStep> steps,  LessonNotes? notes)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LessonResponse() when $default != null:
-return $default(_that.lessonId,_that.generatedAtUtc,_that.algorithmVersion,_that.config,_that.lessonDynamic,_that.selection,_that.steps,_that.notes);case _:
+return $default(_that.lessonId,_that.generatedAtUtc,_that.algorithmVersion,_that.status,_that.readOnly,_that.config,_that.lessonDynamic,_that.selection,_that.steps,_that.notes);case _:
   return orElse();
 
 }
@@ -229,10 +231,10 @@ return $default(_that.lessonId,_that.generatedAtUtc,_that.algorithmVersion,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'lesson_id')  String lessonId, @JsonKey(name: 'generated_at_utc')  String generatedAtUtc, @JsonKey(name: 'algorithm_version')  String algorithmVersion,  LessonConfig? config, @JsonKey(name: 'dynamic')  LessonDynamic? lessonDynamic,  LessonSelection? selection,  List<LessonStep> steps,  LessonNotes? notes)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'lesson_id')  String lessonId, @JsonKey(name: 'generated_at_utc')  String generatedAtUtc, @JsonKey(name: 'algorithm_version')  String algorithmVersion,  String? status, @JsonKey(name: 'read_only')  bool readOnly,  LessonConfig? config, @JsonKey(name: 'dynamic')  LessonDynamic? lessonDynamic,  LessonSelection? selection,  List<LessonStep> steps,  LessonNotes? notes)  $default,) {final _that = this;
 switch (_that) {
 case _LessonResponse():
-return $default(_that.lessonId,_that.generatedAtUtc,_that.algorithmVersion,_that.config,_that.lessonDynamic,_that.selection,_that.steps,_that.notes);case _:
+return $default(_that.lessonId,_that.generatedAtUtc,_that.algorithmVersion,_that.status,_that.readOnly,_that.config,_that.lessonDynamic,_that.selection,_that.steps,_that.notes);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -249,10 +251,10 @@ return $default(_that.lessonId,_that.generatedAtUtc,_that.algorithmVersion,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'lesson_id')  String lessonId, @JsonKey(name: 'generated_at_utc')  String generatedAtUtc, @JsonKey(name: 'algorithm_version')  String algorithmVersion,  LessonConfig? config, @JsonKey(name: 'dynamic')  LessonDynamic? lessonDynamic,  LessonSelection? selection,  List<LessonStep> steps,  LessonNotes? notes)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'lesson_id')  String lessonId, @JsonKey(name: 'generated_at_utc')  String generatedAtUtc, @JsonKey(name: 'algorithm_version')  String algorithmVersion,  String? status, @JsonKey(name: 'read_only')  bool readOnly,  LessonConfig? config, @JsonKey(name: 'dynamic')  LessonDynamic? lessonDynamic,  LessonSelection? selection,  List<LessonStep> steps,  LessonNotes? notes)?  $default,) {final _that = this;
 switch (_that) {
 case _LessonResponse() when $default != null:
-return $default(_that.lessonId,_that.generatedAtUtc,_that.algorithmVersion,_that.config,_that.lessonDynamic,_that.selection,_that.steps,_that.notes);case _:
+return $default(_that.lessonId,_that.generatedAtUtc,_that.algorithmVersion,_that.status,_that.readOnly,_that.config,_that.lessonDynamic,_that.selection,_that.steps,_that.notes);case _:
   return null;
 
 }
@@ -264,12 +266,14 @@ return $default(_that.lessonId,_that.generatedAtUtc,_that.algorithmVersion,_that
 @JsonSerializable()
 
 class _LessonResponse implements LessonResponse {
-  const _LessonResponse({@JsonKey(name: 'lesson_id') required this.lessonId, @JsonKey(name: 'generated_at_utc') required this.generatedAtUtc, @JsonKey(name: 'algorithm_version') required this.algorithmVersion, this.config, @JsonKey(name: 'dynamic') this.lessonDynamic, this.selection, required final  List<LessonStep> steps, this.notes}): _steps = steps;
+  const _LessonResponse({@JsonKey(name: 'lesson_id') required this.lessonId, @JsonKey(name: 'generated_at_utc') required this.generatedAtUtc, @JsonKey(name: 'algorithm_version') required this.algorithmVersion, this.status, @JsonKey(name: 'read_only') this.readOnly = false, this.config, @JsonKey(name: 'dynamic') this.lessonDynamic, this.selection, required final  List<LessonStep> steps, this.notes}): _steps = steps;
   factory _LessonResponse.fromJson(Map<String, dynamic> json) => _$LessonResponseFromJson(json);
 
 @override@JsonKey(name: 'lesson_id') final  String lessonId;
 @override@JsonKey(name: 'generated_at_utc') final  String generatedAtUtc;
 @override@JsonKey(name: 'algorithm_version') final  String algorithmVersion;
+@override final  String? status;
+@override@JsonKey(name: 'read_only') final  bool readOnly;
 @override final  LessonConfig? config;
 @override@JsonKey(name: 'dynamic') final  LessonDynamic? lessonDynamic;
 @override final  LessonSelection? selection;
@@ -295,16 +299,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LessonResponse&&(identical(other.lessonId, lessonId) || other.lessonId == lessonId)&&(identical(other.generatedAtUtc, generatedAtUtc) || other.generatedAtUtc == generatedAtUtc)&&(identical(other.algorithmVersion, algorithmVersion) || other.algorithmVersion == algorithmVersion)&&(identical(other.config, config) || other.config == config)&&(identical(other.lessonDynamic, lessonDynamic) || other.lessonDynamic == lessonDynamic)&&(identical(other.selection, selection) || other.selection == selection)&&const DeepCollectionEquality().equals(other._steps, _steps)&&(identical(other.notes, notes) || other.notes == notes));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LessonResponse&&(identical(other.lessonId, lessonId) || other.lessonId == lessonId)&&(identical(other.generatedAtUtc, generatedAtUtc) || other.generatedAtUtc == generatedAtUtc)&&(identical(other.algorithmVersion, algorithmVersion) || other.algorithmVersion == algorithmVersion)&&(identical(other.status, status) || other.status == status)&&(identical(other.readOnly, readOnly) || other.readOnly == readOnly)&&(identical(other.config, config) || other.config == config)&&(identical(other.lessonDynamic, lessonDynamic) || other.lessonDynamic == lessonDynamic)&&(identical(other.selection, selection) || other.selection == selection)&&const DeepCollectionEquality().equals(other._steps, _steps)&&(identical(other.notes, notes) || other.notes == notes));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,lessonId,generatedAtUtc,algorithmVersion,config,lessonDynamic,selection,const DeepCollectionEquality().hash(_steps),notes);
+int get hashCode => Object.hash(runtimeType,lessonId,generatedAtUtc,algorithmVersion,status,readOnly,config,lessonDynamic,selection,const DeepCollectionEquality().hash(_steps),notes);
 
 @override
 String toString() {
-  return 'LessonResponse(lessonId: $lessonId, generatedAtUtc: $generatedAtUtc, algorithmVersion: $algorithmVersion, config: $config, lessonDynamic: $lessonDynamic, selection: $selection, steps: $steps, notes: $notes)';
+  return 'LessonResponse(lessonId: $lessonId, generatedAtUtc: $generatedAtUtc, algorithmVersion: $algorithmVersion, status: $status, readOnly: $readOnly, config: $config, lessonDynamic: $lessonDynamic, selection: $selection, steps: $steps, notes: $notes)';
 }
 
 
@@ -315,7 +319,7 @@ abstract mixin class _$LessonResponseCopyWith<$Res> implements $LessonResponseCo
   factory _$LessonResponseCopyWith(_LessonResponse value, $Res Function(_LessonResponse) _then) = __$LessonResponseCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'lesson_id') String lessonId,@JsonKey(name: 'generated_at_utc') String generatedAtUtc,@JsonKey(name: 'algorithm_version') String algorithmVersion, LessonConfig? config,@JsonKey(name: 'dynamic') LessonDynamic? lessonDynamic, LessonSelection? selection, List<LessonStep> steps, LessonNotes? notes
+@JsonKey(name: 'lesson_id') String lessonId,@JsonKey(name: 'generated_at_utc') String generatedAtUtc,@JsonKey(name: 'algorithm_version') String algorithmVersion, String? status,@JsonKey(name: 'read_only') bool readOnly, LessonConfig? config,@JsonKey(name: 'dynamic') LessonDynamic? lessonDynamic, LessonSelection? selection, List<LessonStep> steps, LessonNotes? notes
 });
 
 
@@ -332,12 +336,14 @@ class __$LessonResponseCopyWithImpl<$Res>
 
 /// Create a copy of LessonResponse
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? lessonId = null,Object? generatedAtUtc = null,Object? algorithmVersion = null,Object? config = freezed,Object? lessonDynamic = freezed,Object? selection = freezed,Object? steps = null,Object? notes = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? lessonId = null,Object? generatedAtUtc = null,Object? algorithmVersion = null,Object? status = freezed,Object? readOnly = null,Object? config = freezed,Object? lessonDynamic = freezed,Object? selection = freezed,Object? steps = null,Object? notes = freezed,}) {
   return _then(_LessonResponse(
 lessonId: null == lessonId ? _self.lessonId : lessonId // ignore: cast_nullable_to_non_nullable
 as String,generatedAtUtc: null == generatedAtUtc ? _self.generatedAtUtc : generatedAtUtc // ignore: cast_nullable_to_non_nullable
 as String,algorithmVersion: null == algorithmVersion ? _self.algorithmVersion : algorithmVersion // ignore: cast_nullable_to_non_nullable
-as String,config: freezed == config ? _self.config : config // ignore: cast_nullable_to_non_nullable
+as String,status: freezed == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
+as String?,readOnly: null == readOnly ? _self.readOnly : readOnly // ignore: cast_nullable_to_non_nullable
+as bool,config: freezed == config ? _self.config : config // ignore: cast_nullable_to_non_nullable
 as LessonConfig?,lessonDynamic: freezed == lessonDynamic ? _self.lessonDynamic : lessonDynamic // ignore: cast_nullable_to_non_nullable
 as LessonDynamic?,selection: freezed == selection ? _self.selection : selection // ignore: cast_nullable_to_non_nullable
 as LessonSelection?,steps: null == steps ? _self._steps : steps // ignore: cast_nullable_to_non_nullable

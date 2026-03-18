@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/theme.dart';
 import '../../../../shared/widgets/widgets.dart';
+import '../../../today/data/lesson_repository.dart';
 import '../../../today/presentation/providers/lesson_notifier.dart';
-
 
 class SummaryScreen extends ConsumerWidget {
   const SummaryScreen({super.key});
@@ -24,13 +24,19 @@ class SummaryScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.s8),
 
             // Hero
-            const Icon(Icons.check_circle_outline, size: 64, color: AppColors.successDefault),
+            const Icon(
+              Icons.check_circle_outline,
+              size: 64,
+              color: AppColors.successDefault,
+            ),
             const SizedBox(height: AppSpacing.s4),
             const Text('Урок завершён', style: AppTypography.titleLg),
             const SizedBox(height: AppSpacing.s2),
             Text(
               'Вы завершили урок и укрепили словарную базу.',
-              style: AppTypography.bodyMd.copyWith(color: AppColors.textSecondary),
+              style: AppTypography.bodyMd.copyWith(
+                color: AppColors.textSecondary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.s8),
@@ -52,11 +58,17 @@ class SummaryScreen extends ConsumerWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.local_fire_department, color: AppColors.successDefault, size: 20),
+                      const Icon(
+                        Icons.local_fire_department,
+                        color: AppColors.successDefault,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Серия обновлена!',
-                        style: AppTypography.labelMd.copyWith(color: AppColors.successDefault),
+                        style: AppTypography.labelMd.copyWith(
+                          color: AppColors.successDefault,
+                        ),
                       ),
                     ],
                   ),
@@ -66,20 +78,29 @@ class SummaryScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.s4),
               Text(
                 'Детали урока недоступны',
-                style: AppTypography.bodyMd.copyWith(color: AppColors.textTertiary),
+                style: AppTypography.bodyMd.copyWith(
+                  color: AppColors.textTertiary,
+                ),
               ),
               const SizedBox(height: AppSpacing.s8),
             ],
 
             // Actions
             PrimaryButton(
-              label: 'К прогрессу',
-              onPressed: () => context.go('/progress'),
+              label: 'Следующий урок',
+              onPressed: () async {
+                final lessonId = await ref
+                    .read(lessonRepositoryProvider)
+                    .createNextLesson();
+                if (context.mounted) {
+                  context.go('/lesson/$lessonId');
+                }
+              },
             ),
             const SizedBox(height: AppSpacing.s3),
             SecondaryButton(
-              label: 'К повторениям',
-              onPressed: () => context.go('/reviews'),
+              label: 'К прогрессу',
+              onPressed: () => context.go('/progress'),
             ),
           ],
         ),
@@ -99,11 +120,23 @@ class _MetricsGrid extends StatelessWidget {
       runSpacing: 12,
       children: [
         _metric('${summary.stepsDone}', 'Шагов', Icons.check),
-        _metric('${(summary.accuracy * 100).round()}%', 'Точность', Icons.gps_fixed),
-        _metric('${summary.newConceptsLearned}', 'Новые слова', Icons.add_circle_outline),
+        _metric(
+          '${(summary.accuracy * 100).round()}%',
+          'Точность',
+          Icons.gps_fixed,
+        ),
+        _metric(
+          '${summary.newConceptsLearned}',
+          'Новые слова',
+          Icons.add_circle_outline,
+        ),
         _metric('${summary.reviewsDone}', 'Повторений', Icons.replay),
         if (summary.ayahTasksDone > 0)
-          _metric('${summary.ayahTasksDone}', 'Ayah задач', Icons.format_list_numbered),
+          _metric(
+            '${summary.ayahTasksDone}',
+            'Ayah задач',
+            Icons.format_list_numbered,
+          ),
       ],
     );
   }

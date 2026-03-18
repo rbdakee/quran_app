@@ -76,11 +76,17 @@ class _ProgressBody extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.accentPrimary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              border: Border.all(color: AppColors.accentPrimary.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppColors.accentPrimary.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.replay, color: AppColors.accentPrimary, size: 28),
+                const Icon(
+                  Icons.replay,
+                  color: AppColors.accentPrimary,
+                  size: 28,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -88,12 +94,16 @@ class _ProgressBody extends StatelessWidget {
                     children: [
                       Text(
                         'К повторению сегодня',
-                        style: AppTypography.labelMd.copyWith(color: AppColors.accentPrimary),
+                        style: AppTypography.labelMd.copyWith(
+                          color: AppColors.accentPrimary,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${summary.dueCount} слов',
-                        style: AppTypography.titleMd.copyWith(color: AppColors.accentPrimary),
+                        style: AppTypography.titleMd.copyWith(
+                          color: AppColors.accentPrimary,
+                        ),
                       ),
                     ],
                   ),
@@ -112,10 +122,26 @@ class _ProgressBody extends StatelessWidget {
           spacing: 12,
           runSpacing: 12,
           children: [
-            _card('${byState['learning'] ?? 0}', 'Изучается', Icons.school_outlined),
-            _card('${byState['reviewing'] ?? 0}', 'Закреплено', Icons.autorenew),
-            _card('${byState['mastered'] ?? 0}', 'Освоено', Icons.verified_outlined),
-            _card('${summary.totalTokens}', 'Всего слов', Icons.library_books_outlined),
+            _card(
+              '${byState['learning'] ?? 0}',
+              'Изучается',
+              Icons.school_outlined,
+            ),
+            _card(
+              '${byState['reviewing'] ?? 0}',
+              'Закреплено',
+              Icons.autorenew,
+            ),
+            _card(
+              '${byState['mastered'] ?? 0}',
+              'Освоено',
+              Icons.verified_outlined,
+            ),
+            _card(
+              '${summary.totalTokens}',
+              'Всего слов',
+              Icons.library_books_outlined,
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.sectionGap),
@@ -124,7 +150,9 @@ class _ProgressBody extends StatelessWidget {
         if (summary.weakConcepts.isNotEmpty) ...[
           Text('Слабые места', style: AppTypography.titleSm),
           const SizedBox(height: AppSpacing.s3),
-          ...summary.weakConcepts.map((concept) => _WeakConceptRow(concept: concept)),
+          ...summary.weakConcepts.map(
+            (concept) => _WeakConceptRow(concept: concept),
+          ),
           const SizedBox(height: AppSpacing.sectionGap),
         ],
 
@@ -164,7 +192,11 @@ class _WeakConceptRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_outlined, size: 18, color: AppColors.warningDefault),
+          const Icon(
+            Icons.warning_amber_outlined,
+            size: 18,
+            color: AppColors.warningDefault,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -173,7 +205,11 @@ class _WeakConceptRow extends StatelessWidget {
               textDirection: TextDirection.rtl,
             ),
           ),
-          const Icon(Icons.chevron_right, size: 18, color: AppColors.textTertiary),
+          const Icon(
+            Icons.chevron_right,
+            size: 18,
+            color: AppColors.textTertiary,
+          ),
         ],
       ),
     );

@@ -578,6 +578,76 @@ def test_ayah_eligibility():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# 14b. No reinforcement when zero due reviews (bug fix)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_no_reinforcement_when_zero_due():
+    """
+    When a user has NO words due for review, build_lesson must NOT surface
+    old words via reinforcement. This prevents 'hidden reviews' when the
+    user expects a new-words-only lesson.
+    """
+    print("\n═══ 14b. No Reinforcement When Zero Due ═══")
+    from engine.generate_lesson import read_tokens, build_lesson, concept_key_for_token
+
+    tokens = read_tokens(DATASET_PATH)
+
+    # Build progress where every token has a far-future next_review_at
+    # so pick_due returns 0 items, but tokens are in 'reviewing' state
+    # with non-zero wrong counts (which would normally trigger reinforcement).
+    now = datetime.now(timezone.utc)
+    far_future = (now + timedelta(days=30)).isoformat()
+
+    progress: dict[str, dict] = {}
+    for t in tokens[:50]:
+        progress[t.token_id] = {
+            "token_id": t.token_id,
+            "concept_key": concept_key_for_token(t),
+            "state": "reviewing",
+            "learning_step": 3,
+            "stability": 5.0,
+            "difficulty_user": 0.5,
+            "next_review_at": far_future,
+            "last_seen_at": now.isoformat(),
+            "first_seen_at": (now - timedelta(days=10)).isoformat(),
+            "total_reviews": 10,
+            "total_correct": 6,
+            "total_wrong": 4,        # high wrong rate → reinforcement candidate
+            "consecutive_wrong": 0,
+            "last_outcome": "good",
+        }
+
+    lesson = build_lesson(tokens, seed=42, progress_override=progress)
+
+    actual_due = lesson["dynamic"]["actual_due"]
+    actual_reinf = lesson["dynamic"]["actual_reinforcement"]
+    reinf_steps = [s for s in lesson["steps"] if s.get("type") == "reinforcement"]
+
+    log("zero_due_count", "PASS" if actual_due == 0 else "FAIL",
+        f"expected 0 due, got {actual_due}")
+    log("zero_reinforcement_count", "PASS" if actual_reinf == 0 else "FAIL",
+        f"expected 0 reinforcement, got {actual_reinf}")
+    log("no_reinforcement_steps", "PASS" if len(reinf_steps) == 0 else "FAIL",
+        f"expected 0 reinforcement steps, got {len(reinf_steps)}")
+
+    # Verify lesson still has new words (not empty)
+    actual_new = lesson["dynamic"]["actual_new"]
+    log("still_has_new_words", "PASS" if actual_new > 0 else "FAIL",
+        f"lesson should still have new words, got {actual_new}")
+
+    # Verify NO old/review-state tokens appear in lesson steps at all
+    progress_token_ids = set(progress.keys())
+    old_tokens_in_steps = []
+    for s in lesson["steps"]:
+        tid = s.get("token", {}).get("token_id")
+        if tid and tid in progress_token_ids and s.get("type") != "review_card":
+            old_tokens_in_steps.append((tid, s.get("type")))
+
+    log("no_old_tokens_as_reinforcement", "PASS" if len(old_tokens_in_steps) == 0 else "FAIL",
+        f"old tokens surfaced in non-review steps: {old_tokens_in_steps[:3]}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # 14. Counters & Timestamps
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -649,6 +719,7 @@ def main():
     test_new_dedup_by_concept()
     test_mcq_distractors()
     test_ayah_eligibility()
+    test_no_reinforcement_when_zero_due()
 
     # Shared
     test_counters_and_timestamps()

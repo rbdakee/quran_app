@@ -44,8 +44,9 @@ class ReviewsScreen extends ConsumerWidget {
                     child: EmptyStateBlock(
                       icon: Icons.auto_awesome,
                       title: 'Срочных повторений нет',
-                      body: 'Можете пройти урок повторения по уже изученным словам.',
-                      ctaLabel: 'Урок повторения',
+                      body:
+                          'Основной путь продолжается через «Следующий урок». Здесь доступна только дополнительная тренировка по уже изученным словам.',
+                      ctaLabel: 'Доп. тренировка',
                       onCta: () => ref.startReviewLesson(context),
                     ),
                   ),
@@ -87,8 +88,6 @@ class _ReviewsList extends ConsumerWidget {
       ],
     );
   }
-
-
 }
 
 class _DueReviewRow extends StatelessWidget {
@@ -126,12 +125,16 @@ class _DueReviewRow extends StatelessWidget {
                   children: [
                     Text(
                       item.state,
-                      style: AppTypography.labelSm.copyWith(color: AppColors.textTertiary),
+                      style: AppTypography.labelSm.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'score: ${item.dueScore.toStringAsFixed(0)}',
-                      style: AppTypography.labelSm.copyWith(color: AppColors.textTertiary),
+                      style: AppTypography.labelSm.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ],
                 ),
@@ -149,7 +152,13 @@ class _DueReviewRow extends StatelessWidget {
                   color: AppColors.errorBg,
                   borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
                 ),
-                child: Text('overdue', style: AppTypography.labelSm.copyWith(color: AppColors.errorDefault), overflow: TextOverflow.ellipsis),
+                child: Text(
+                  'overdue',
+                  style: AppTypography.labelSm.copyWith(
+                    color: AppColors.errorDefault,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
           if (isWeak)
@@ -161,12 +170,22 @@ class _DueReviewRow extends StatelessWidget {
                   color: AppColors.warningBg,
                   borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
                 ),
-                child: Text('weak', style: AppTypography.labelSm.copyWith(color: AppColors.warningDefault), overflow: TextOverflow.ellipsis),
+                child: Text(
+                  'weak',
+                  style: AppTypography.labelSm.copyWith(
+                    color: AppColors.warningDefault,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
 
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right, size: 18, color: AppColors.textTertiary),
+          const Icon(
+            Icons.chevron_right,
+            size: 18,
+            color: AppColors.textTertiary,
+          ),
         ],
       ),
     );
@@ -183,7 +202,7 @@ class _ReviewsListHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Доступно к повторению: ${items.length}',
+          'К дополнительной тренировке доступно: ${items.length}',
           style: AppTypography.bodyMd.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.s3),
@@ -191,11 +210,25 @@ class _ReviewsListHeader extends StatelessWidget {
           spacing: 8,
           children: [
             if (items.where((i) => i.dueScore >= 80).isNotEmpty)
-              _badge('Срочные: ${items.where((i) => i.dueScore >= 80).length}', AppColors.errorDefault, AppColors.errorBg),
-            if (items.where((i) => i.dueScore >= 40 && i.dueScore < 80).isNotEmpty)
-              _badge('Обычные: ${items.where((i) => i.dueScore >= 40 && i.dueScore < 80).length}', AppColors.warningDefault, AppColors.warningBg),
+              _badge(
+                'Срочные: ${items.where((i) => i.dueScore >= 80).length}',
+                AppColors.errorDefault,
+                AppColors.errorBg,
+              ),
+            if (items
+                .where((i) => i.dueScore >= 40 && i.dueScore < 80)
+                .isNotEmpty)
+              _badge(
+                'Обычные: ${items.where((i) => i.dueScore >= 40 && i.dueScore < 80).length}',
+                AppColors.warningDefault,
+                AppColors.warningBg,
+              ),
             if (items.where((i) => i.dueScore < 40).isNotEmpty)
-              _badge('Лёгкие: ${items.where((i) => i.dueScore < 40).length}', AppColors.successDefault, AppColors.successBg),
+              _badge(
+                'Лёгкие: ${items.where((i) => i.dueScore < 40).length}',
+                AppColors.successDefault,
+                AppColors.successBg,
+              ),
           ],
         ),
       ],
@@ -219,15 +252,17 @@ extension _ReviewLessonBuilder on WidgetRef {
     try {
       final lesson = await read(reviewsWordsLessonProvider.future);
       if (!context.mounted) return;
-      
+
       // Cache lesson and navigate (push keeps back stack for AppBar back button)
-      read(lessonNotifierProvider.notifier).cacheLesson(lesson.lessonId, lesson);
+      read(
+        lessonNotifierProvider.notifier,
+      ).cacheLesson(lesson.lessonId, lesson);
       context.push('/lesson/${lesson.lessonId}');
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
     }
   }
 }
